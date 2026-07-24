@@ -1,0 +1,9 @@
+bin/
+*.exe
+*.o
+*.out
+
+.DS_Srore
+Thums.db
+
+*.swp
