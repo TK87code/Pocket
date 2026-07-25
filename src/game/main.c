@@ -1,48 +1,29 @@
 #include <stdio.h>
-#include "../engine/p_screen.h"
-#include "../engine/p_input.h"
+#include "../../include/pocket.h"
 
-int main(void) {
-	p_input_init();
-	p_screen_clear();
-	p_cursor_hide();
-	
-	int player_input = 0;
-	int p_x = 1, p_y = 1;
+void my_init(void)
+{
+	printf("Rougue demo Init,,,\n");
+}
 
-	while (1) {
-		p_screen_clear();
-		p_cursor_move(p_x, p_y);
+void my_update(void)
+{
 
-		p_fcolor_set(P_COLOR_RED);
-		printf("@");
-		p_fcolor_set(P_COLOR_DEFAULT);
-		fflush(stdout);
+}
 
-		player_input = p_input_read();
+void my_draw(void)
+{
 
-		if (player_input == 'q') break;
+}
 
-		if (player_input == 'h') {
-			if (p_x - 1 >= 1) p_x -= 1; // left top corner is 1,1 in ANSI escape sequece
-		}
-		else if (player_input == 'l') {
-			if (p_x + 1 <= 30) p_x += 1;
-		}
-		else if (player_input == 'j') {
-			if (p_y + 1 <= 30) p_y += 1;
-		}
-		else if (player_input == 'k') {
-			if (p_y - 1 >= 1) p_y -= 1;
-		}
+int main(void) 
+{
+	p_engine_init();
 
-	}
+	struct p_game_config config = {my_init, my_update, my_draw};
+	p_engine_ignite(&config);
 
-	p_screen_clear();
-	p_cursor_move(1,1);
-	p_cursor_show();
-	p_fcolor_set(P_COLOR_DEFAULT);
+	p_engine_cleanup();
 
-	p_input_restore();
 	return 0;
 }
