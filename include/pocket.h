@@ -8,9 +8,8 @@
 // === Engine core API === 
 
 struct p_game_config {
-	void (*on_init)(void);
-	void (*on_update)(void);
-	void (*on_draw)(void);
+	void (*on_init)(void); // User should register scenes in this function
+	int target_fps;
 };
 
 /**
@@ -29,7 +28,6 @@ void p_engine_ignite(struct p_game_config *config);
  * @brief  
  */
 void p_engine_cleanup(void);
-
 
 /**
  * @brief This function stops a game loop. User must call this to quit application normally.
@@ -72,5 +70,42 @@ void p_cursor_move(int x, int y);
  * @param  color_code Color code difined in p_screen.h
  */
 void p_fcolor_set(int color_code);
+
+// === Scene Module API ===
+
+#define P_MAX_SCENES 16 // Max scene slot available for user to register
+
+struct p_scene {
+	void (*on_enter)(void); // The user defined func which is called once when enter
+	void (*on_update)(void); // The user defined func called every frame
+	void (*on_draw)(void); // The user defined func called every frame
+	void (*on_exit)(void); // The user defined func called once when exit
+};
+/**
+ * @brief Register user defined scene. scene id must be 0 or greater and
+ *        does not exeed P_MAX_SCENES
+ *
+ * @param  scene_id scene id (0 < X < P_MAX_SCENES)
+ * @param  scene a pointer to struct p_scene
+ *
+ * @return return 0 on success. -1 on failure 
+ */
+int p_scene_register(int scene_id, struct p_scene *scene);
+
+/**
+ * @brief Swap to the registered scene specified by ID  
+ *
+ * @param  scene_id ID of the scene which was used when registerd
+ *
+ * @return 0 on success ERROR-> -1: Invalid scene id
+ */
+int p_scene_swap(int scene_id);
+
+/**
+ * @brief Get current scene
+ *
+ * @return Returns scene ID. -1 means no scenes registered yet 
+ */
+int p_scene_get(void);
 
 #endif 
