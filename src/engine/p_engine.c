@@ -60,7 +60,7 @@ void p_engine_quit(void)
 
 static int __p_config_load(struct p_game_config *config)
 {
-	if (config->on_init == NULL || config == NULL)
+	if (config == NULL || config->on_init == NULL)
 		return -1;
 	else
 		config->on_init(config->user_data);

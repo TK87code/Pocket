@@ -102,11 +102,11 @@ int p_scene_register(int scene_id, struct p_scene *scene);
 /**
  * @brief Swap to the registered scene specified by ID  
  *
- * @param  scene_id ID of the scene which was used when registerd
+ * @param  next_scene_id ID of the next scene which was used when registerd
  *
  * @return 0 on success ERROR-> -1: Invalid scene id
  */
-int p_scene_swap(int scene_id);
+int p_scene_swap(int next_scene_id);
 
 /**
  * @brief Get current scene

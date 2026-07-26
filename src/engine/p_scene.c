@@ -15,18 +15,18 @@ int p_scene_register(int scene_id, struct p_scene *scene)
 	return 0;
 }
 
-int p_scene_swap(int scene_id)
+int p_scene_swap(int next_scene_id)
 {
-	if (scene_id < 0 || scene_id >= P_MAX_SCENES)
+	if (next_scene_id < 0 || next_scene_id >= P_MAX_SCENES)
 		return -1;
 
 	if (current_scene_id != -1 && registered_scenes[current_scene_id].on_exit)
 		registered_scenes[current_scene_id].on_exit(registered_scenes[current_scene_id].user_data);
 
-	if (registered_scenes[scene_id].on_enter)
-		registered_scenes[scene_id].on_enter(registered_scenes[current_scene_id].user_data);
+	if (registered_scenes[next_scene_id].on_enter)
+		registered_scenes[next_scene_id].on_enter(registered_scenes[next_scene_id].user_data);
 
-	current_scene_id = scene_id;
+	current_scene_id = next_scene_id;
 
 	return 0;
 }
