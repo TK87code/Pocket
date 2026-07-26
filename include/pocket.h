@@ -8,31 +8,35 @@
 // === Engine core API === 
 
 struct p_game_config {
-	void (*on_init)(void); // User should register scenes in this function
+	void *user_data; // Pointer to store user data structure
+	void (*on_init)(void *user_data); //func pointer for user initialization
 	int target_fps;
 };
 
 /**
  * @brief  Initialize engine
+ * 
+ * @param config structure passed by user.
+ *
+ * @return 0 on success. ERROR-> -1 invalid config structure passed.
  */
-void p_engine_init(void);
+int p_engine_init(struct p_game_config *config);
 
 /**
  * @brief  Start the game loop
  *
- * @param  p_game_config config structure defined in Pocket.h
  */
-void p_engine_ignite(struct p_game_config *config);
-
-/**
- * @brief  
- */
-void p_engine_cleanup(void);
+void p_engine_ignite(void);
 
 /**
  * @brief This function stops a game loop. User must call this to quit application normally.
  */
 void p_engine_quit(void);
+
+/**
+ * @brief Clean up engine. User should call this before exit. 
+ */
+void p_engine_cleanup(void);
 
 // === Input Module API === 
 
@@ -76,11 +80,14 @@ void p_fcolor_set(int color_code);
 #define P_MAX_SCENES 16 // Max scene slot available for user to register
 
 struct p_scene {
-	void (*on_enter)(void); // The user defined func which is called once when enter
-	void (*on_update)(void); // The user defined func called every frame
-	void (*on_draw)(void); // The user defined func called every frame
-	void (*on_exit)(void); // The user defined func called once when exit
+	void *user_data;
+	// parameters: user data and deltatime
+	void (*on_enter)(void *user_data); // The user defined func which is called once when enter
+	void (*on_update)(void *user_data, float dt); // The user defined func called every frame
+	void (*on_draw)(void *user_data); // The user defined func called every frame
+	void (*on_exit)(void *user_data); // The user defined func called once when exit
 };
+
 /**
  * @brief Register user defined scene. scene id must be 0 or greater and
  *        does not exeed P_MAX_SCENES

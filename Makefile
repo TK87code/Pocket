@@ -1,8 +1,8 @@
 CC = gcc
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra -O2
 INCLUDE = include/ 
 
-TARGET = bin/rogue
+TARGET = bin/demo
 
 SRC = src/game/*.c src/engine/*.c
 
