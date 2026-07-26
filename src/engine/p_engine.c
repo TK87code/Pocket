@@ -36,21 +36,22 @@ void p_engine_ignite(void)
 
 int p_engine_init(struct p_game_config* config)
 {	
-	if (__p_config_load(config) < 0)
-		return -1;
-
 	__p_input_init();
 	p_screen_clear();
 	__p_cursor_hide();
+	
+	if (__p_config_load(config) < 0)
+		return -1;
 
 	return 0;
 }
 
 void p_engine_cleanup(void)
 {
-	p_screen_clear();
+	p_cursor_move(0, 0);
 	__p_cursor_show();
 	__p_input_restore();
+	p_screen_clear();
 }
 
 void p_engine_quit(void)
