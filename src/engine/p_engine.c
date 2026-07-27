@@ -25,7 +25,7 @@ void p_engine_ignite(void)
 		__p_scene_update(dt);
 		__p_scene_draw();
 
-		__p_update_screen();
+		__p_screen_update();
 
 		(void)clock_gettime(CLOCK_MONOTONIC, &e_time);
 		elapsed_usec = (e_time.tv_sec - s_time.tv_sec) * 1000000 // sec to microsec
@@ -39,8 +39,8 @@ void p_engine_ignite(void)
 int p_engine_init(struct p_game_config* config)
 {	
 	__p_input_init();
-	__p_clear_screen();
-	__p_hide_cursor();
+	__p_screen_clear();
+	__p_screen_hidecurs();
 	
 	if (__p_config_load(config) < 0)
 		return -1;
@@ -50,10 +50,10 @@ int p_engine_init(struct p_game_config* config)
 
 void p_engine_cleanup(void)
 {
-	__p_move_cursor(0, 0);
-	__p_show_cursor();
+	__p_screen_mvcurs(0, 0);
+	__p_screen_showcurs();
 	__p_input_restore();
-	__p_clear_screen();
+	__p_screen_clear();
 }
 
 void p_engine_quit(void)

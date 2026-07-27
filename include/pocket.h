@@ -5,6 +5,8 @@
 #ifndef P_POCKET_H
 #define P_POCKET_H
 
+#include <stddef.h> // size_t
+
 // === Engine core API === 
 
 struct p_game_config {
@@ -43,9 +45,9 @@ void p_engine_cleanup(void);
 // === Input Module API === 
 
 /**
- * @brief  Read 1 character from a key board and return the key code as an int.
+ * @brief  Read 1 character from a keyboard and return the key code as an int.
  *
- * @return  return the character read as an int
+ * @return  Returns the read character
  */
 int p_input_read(void);
 
@@ -66,7 +68,7 @@ int p_input_read(void);
 #define P_COLOR_WHITE 37
 
 /**
- * @brief  Draw character at specified x&y
+ * @brief  Put a character at specified x and y coordinates
  *
  * @param  x x position(col)
  * @param  y y position(row)
@@ -75,10 +77,10 @@ int p_input_read(void);
  *
  * @return 0 on success -1 when invalid x, y, or color code passed 
  */
-int p_draw_char(int x, int y, int color, char c);
+int p_screen_putch(int x, int y, int color, char c);
 
 /**
- * @brief  Draw a string at specified position.
+ * @brief  Put a string at specified x and y coordinates
  *
  * @param  x x position(col)
  * @param  y y position(row)
@@ -87,7 +89,7 @@ int p_draw_char(int x, int y, int color, char c);
  *
  * @return 0 on success, -1 when invalid x, y, or color code passed.
  */
-int p_draw_str(int x, int y, int color, const char *str);
+int p_screen_putstr(int x, int y, int color, const char *str);
 
 // === Scene Module API ===
 
@@ -103,8 +105,8 @@ struct p_scene {
 };
 
 /**
- * @brief Register user defined scene. scene id must be 0 or greater and
- *        does not exeed P_MAX_SCENES
+ * @brief Register user-defined scene. Scene ID must be 0 or greater and
+ *        does not exceed P_MAX_SCENES
  *
  * @param  scene_id scene id (0 < X < P_MAX_SCENES)
  * @param  scene a pointer to struct p_scene
@@ -116,7 +118,7 @@ int p_scene_register(int scene_id, struct p_scene *scene);
 /**
  * @brief Swap to the registered scene specified by ID  
  *
- * @param  next_scene_id ID of the next scene which was used when registerd
+ * @param  next_scene_id ID of the next scene which was used when registered
  *
  * @return 0 on success ERROR-> -1: Invalid scene id
  */
@@ -128,5 +130,43 @@ int p_scene_swap(int next_scene_id);
  * @return Returns scene ID. -1 means no scenes registered yet 
  */
 int p_scene_get(void);
+
+// === Memory Arena API ===
+
+struct p_arena {
+	unsigned char *base; // pointer to the top of arena
+	size_t size;		// Total size of arena
+	size_t offset;		// How much memory used in arena 
+};
+
+/**
+ * @brief Initializes a memory arena with a pre-allocated backing buffer 
+ *
+ * @param  arena A pointer to the arena structure to initialize
+ * @param  backing_buffer A pointer to the pre-allocated memory block
+ * @param  arena_size Total size of the backing buffer in bytes
+ *
+ * @return 0 on success 
+ */
+int p_arena_init(struct p_arena *arena, void *backing_buffer, size_t arena_size);
+
+/**
+ * @brief  Allocate memory from arena and returns the pointer to the designated memory
+ *
+ * @param  arena pointer to the arena which gives memory space  
+ * @param  bytes the size of memory that user wants for this allocation
+ *
+ * @return Returns a pointer on success, or NULL if out of memory
+ */
+void *p_arena_alloc(struct p_arena *arena, size_t bytes);
+
+/**
+ * @brief  Reset the arena's allocation offset to 0, allowing the memory to be reused. 
+ *
+ * @param  arena A pointer to the arena to free
+ *
+ * @return 0 on success
+ */
+int p_arena_clear(struct p_arena *arena);
 
 #endif 

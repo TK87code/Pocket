@@ -35,10 +35,10 @@ void my_draw(void *user_data)
 {
 	struct my_game *game = user_data;
 
-	p_draw_str(2, 2, P_COLOR_GREEN, "test");
-	p_draw_str(2, 3, P_COLOR_DEFAULT, "TEST");
+	p_screen_putstr(2, 2, P_COLOR_GREEN, "test");
+	p_screen_putstr(2, 3, P_COLOR_DEFAULT, "TEST");
 	
-	p_draw_char(game->x, game->y, P_COLOR_RED, '@');
+	p_screen_putch(game->x, game->y, P_COLOR_RED, '@');
 }
 
 void engine_ready(void *user_data) {
