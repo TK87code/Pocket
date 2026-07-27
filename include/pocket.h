@@ -14,7 +14,8 @@ struct p_game_config {
 };
 
 /**
- * @brief  Initialize engine
+ * @brief  Initialize engine. This disables some terminal attributes
+ * under the hood.
  * 
  * @param config structure passed by user.
  *
@@ -29,12 +30,13 @@ int p_engine_init(struct p_game_config *config);
 void p_engine_ignite(void);
 
 /**
- * @brief This function stops a game loop. User must call this to quit application normally.
+ * @brief This function stops a game loop.
  */
 void p_engine_quit(void);
 
 /**
- * @brief Clean up engine. User should call this before exit. 
+ * @brief Clean up engine. User should call this before exit, otherwise the user terminal
+ * will be broken(some attributes will still be disabled).
  */
 void p_engine_cleanup(void);
 
@@ -49,31 +51,43 @@ int p_input_read(void);
 
 // === Screen Module API === 
 
+#define P_DEFAULT_SWIDTH 80
+#define P_DEFAULT_SHEIGHT 24
+
 // COLOR CODES
 #define P_COLOR_DEFAULT 0 
+#define P_COLOR_BLACK 30 
 #define P_COLOR_RED 31
 #define P_COLOR_GREEN 32
+#define P_COLOR_YELLOW 33
 #define P_COLOR_BLUE 34
+#define P_COLOR_MAGENTA 35
+#define P_COLOR_CYAN 36
+#define P_COLOR_WHITE 37
 
 /**
- * @brief  Clear screen
- */
-void p_screen_clear(void);
-
-/**
- * @brief  Move cursor to specified x and y
+ * @brief  Draw character at specified x&y
  *
- * @param  x x(COL) coordinate 
- * @param  y y(ROW) coordinate
+ * @param  x x position(col)
+ * @param  y y position(row)
+ * @param  color color codes defined in pocket.h
+ * @param  c character to draw
+ *
+ * @return 0 on success -1 when invalid x, y, or color code passed 
  */
-void p_cursor_move(int x, int y);
+int p_draw_char(int x, int y, int color, char c);
 
 /**
- * @brief  Change color of characters
+ * @brief  Draw a string at specified position.
  *
- * @param  color_code Color code difined in p_screen.h
+ * @param  x x position(col)
+ * @param  y y position(row)
+ * @param  color color codes defined in pocket.h
+ * @param  str String to draw
+ *
+ * @return 0 on success, -1 when invalid x, y, or color code passed.
  */
-void p_fcolor_set(int color_code);
+int p_draw_str(int x, int y, int color, const char *str);
 
 // === Scene Module API ===
 
