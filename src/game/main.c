@@ -10,6 +10,13 @@ void my_scene_update(void *user_data, float dt)
 	(void)dt;
 	struct game_state *state = (struct game_state *)user_data;
 	state->frame_count++;
+
+	struct p_event e;
+	while (pocket_poll_event(&e) != -1) {
+		if (e.type == P_EVENT_KEY_PRESSED)
+			if (e.data.key.key_code == 'q' || e.data.key.key_code == 'Q')
+				pocket_quit();
+	}
 }
 
 void my_scene_draw(void *user_data)

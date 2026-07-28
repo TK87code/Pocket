@@ -21,7 +21,7 @@ void __p_input_restore(void)
 	tcsetattr(STDIN_FILENO, TCSANOW, &original_term); // Restore original attribute 
 }
 
-int p_input_read(void) 
+int __p_input_read(void) 
 {
 	unsigned char c;
 	// order OS to read 1 byte directly from file descriptor

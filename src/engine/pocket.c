@@ -4,6 +4,7 @@
 #include "p_input_internal.h"
 #include "p_screen_internal.h"
 #include "p_scene_internal.h"
+#include "p_event_internal.h"
 
 #define DEFAULT_TARGET_FPS 60
 #define BACKING_BUFFER_SIZE 1024 * 1024
@@ -40,11 +41,19 @@ int pocket_ignite(void)
 		float dt = elapsed_usec / 1000000.0f;
 		(void)clock_gettime(CLOCK_MONOTONIC, &s_time);
 
+		int k = __p_input_read();
+		if (k != -1) {
+			struct p_event e;
+			e.type = P_EVENT_KEY_PRESSED;
+			e.data.key.key_code = k;
+			__p_event_push(&e);
+		}
+
 		__p_scene_update(dt);
 		__p_scene_draw();
 
 		__p_screen_update();
-		p_arena_clear(&frame_arena);
+		p_arena_release(&frame_arena);
 
 		(void)clock_gettime(CLOCK_MONOTONIC, &e_time);
 		elapsed_usec = (e_time.tv_sec - s_time.tv_sec) * 1000000 // sec to microsec
@@ -77,6 +86,11 @@ int pocket_cleanup(void)
 void *pocket_reserve_frame_arena(size_t bytes)
 {
 	return p_arena_reserve(&frame_arena, bytes);	
+}
+
+int pocket_poll_event(struct p_event *event)
+{
+	return __p_event_poll(event);
 }
 
 static int __pocket_load_config(struct p_game_config *config)

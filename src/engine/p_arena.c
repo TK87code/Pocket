@@ -23,7 +23,7 @@ void *p_arena_reserve(struct p_arena *arena, size_t bytes)
 	return ptr;
 }
 
-int p_arena_clear(struct p_arena *arena) 
+int p_arena_release(struct p_arena *arena) 
 {
 	arena->offset = 0;
 

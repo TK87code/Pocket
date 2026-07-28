@@ -40,15 +40,22 @@ int pocket_ignite(void);
 int pocket_quit(void);
 
 /**
- * @brief  Clean up engine. User should call this before exit, otherwise the user terminal
- * will be broken(some attributes will still be disabled).
+ * @brief  Clean up engine and restore terminal attributes.
  * 
+ * @warning MUST call this function before exiting program, otherwise the user terminal screen
+ * will be broken (some attributes will still be disabled).
+ *
  * @return  0 on success.
  */
 int pocket_cleanup(void);
 
 /**
- * @brief  Reserve memory space in Frame Arena which will be cleaned up each frame.
+ * @brief  Reserve memory space in Frame Arena which will be cleaned up each frame by the engine,
+ * so user does not have to clear.
+ *
+ * @warning  DO NOT free memory reserved by this function. It will cause segmentation fault
+ * and crash the program. Memory release (re-setting memory offset) will be done end of the each
+ * frame by the engine automatically.
  *
  * @param  bytes Size in bytes to reserve.
  *
@@ -56,14 +63,30 @@ int pocket_cleanup(void);
  */
 void *pocket_reserve_frame_arena(size_t bytes);
 
+
+/**
+ * @brief  Poll event from the engine and store the memory address to the oldest event
+ * to the event pointer provided. 
+ *
+ * @warning  DO NOT use standard C input functions (like getchar() or scanf())
+ * inside your scene callbacks. They will blocl the engine's game loop and breal the
+ * frame rate. Always use this event poller to get user inputs.
+ *
+ * @param  event A pointer to an event struct.
+ *
+ * @return  0 on success, -1 if no event is in queue.
+ */
+struct p_event;
+int pocket_poll_event(struct p_event *event);
+
 // === Input Module API === 
 
 /**
  * @brief  Read 1 character from a keyboard and return the key code as an int.
  *
- * @return  Returns the read character
+ * @return  Returns the read character. -1 if no key pressed
  */
-int p_input_read(void);
+//int p_input_read(void);
 
 // === Screen Module API === 
 
@@ -175,12 +198,30 @@ int p_arena_init(struct p_arena *arena, void *backing_buffer, size_t arena_size)
 void *p_arena_reserve(struct p_arena *arena, size_t bytes);
 
 /**
- * @brief  Reset the arena's allocation offset to 0, allowing the memory to be reused. 
+ * @brief  Release the memory arena reserved, allowing the memory to be reused. 
  *
  * @param  arena A pointer to the arena to free
  *
  * @return 0 on success
  */
-int p_arena_clear(struct p_arena *arena);
+int p_arena_release(struct p_arena *arena);
+
+// === Event Module API ===
+
+#define P_MAX_EVENTS 32
+
+enum p_event_type{
+	P_EVENT_QUIT,
+	P_EVENT_KEY_PRESSED,
+};
+
+struct p_event {
+	enum p_event_type type;
+	union {
+		struct {
+			int key_code;
+		} key;
+	} data;
+};
 
 #endif 
