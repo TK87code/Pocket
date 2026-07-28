@@ -1,8 +1,7 @@
 #include <time.h>    // clock_gettime
 #include <unistd.h>  // usleep
 #include "pocket.h"
-#include "p_input_internal.h"
-#include "p_screen_internal.h"
+#include "p_terminal_internal.h"
 #include "p_scene_internal.h"
 #include "p_event_internal.h"
 
@@ -20,13 +19,10 @@ static int target_fps;
 
 int pocket_init(struct p_game_config* config)
 {	
-	__p_input_init();
-	__p_screen_clear();
-	__p_screen_hidecurs();
-	
 	if (__pocket_load_config(config) < 0)
 		return -1;
 
+	__p_terminal_init();
 	p_arena_init(&frame_arena, backing_buffer, (size_t)BACKING_BUFFER_SIZE);  
 	return 0;
 }
@@ -41,7 +37,7 @@ int pocket_ignite(void)
 		float dt = elapsed_usec / 1000000.0f;
 		(void)clock_gettime(CLOCK_MONOTONIC, &s_time);
 
-		int k = __p_input_read();
+		int k = __p_terminal_getch();
 		if (k != -1) {
 			struct p_event e;
 			e.type = P_EVENT_KEY_PRESSED;
@@ -52,7 +48,7 @@ int pocket_ignite(void)
 		__p_scene_update(dt);
 		__p_scene_draw();
 
-		__p_screen_update();
+		__p_terminal_update();
 		p_arena_release(&frame_arena);
 
 		(void)clock_gettime(CLOCK_MONOTONIC, &e_time);
@@ -75,10 +71,7 @@ int pocket_quit(void)
 
 int pocket_cleanup(void)
 {
-	__p_screen_mvcurs(0, 0);
-	__p_screen_showcurs();
-	__p_input_restore();
-	__p_screen_clear();
+	__p_terminal_restore();
 
 	return 0;
 }

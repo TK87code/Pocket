@@ -63,6 +63,21 @@ int pocket_cleanup(void);
  */
 void *pocket_reserve_frame_arena(size_t bytes);
 
+#define P_MAX_EVENTS 32
+
+enum p_event_type{
+	P_EVENT_QUIT,
+	P_EVENT_KEY_PRESSED,
+};
+
+struct p_event {
+	enum p_event_type type;
+	union {
+		struct {
+			int key_code;
+		} key;
+	} data;
+};
 
 /**
  * @brief  Poll event from the engine and store the memory address to the oldest event
@@ -76,19 +91,9 @@ void *pocket_reserve_frame_arena(size_t bytes);
  *
  * @return  0 on success, -1 if no event is in queue.
  */
-struct p_event;
 int pocket_poll_event(struct p_event *event);
 
-// === Input Module API === 
-
-/**
- * @brief  Read 1 character from a keyboard and return the key code as an int.
- *
- * @return  Returns the read character. -1 if no key pressed
- */
-//int p_input_read(void);
-
-// === Screen Module API === 
+// === Terminal Module API === 
 
 #define P_DEFAULT_SWIDTH 80
 #define P_DEFAULT_SHEIGHT 24
@@ -114,7 +119,7 @@ int pocket_poll_event(struct p_event *event);
  *
  * @return 0 on success -1 when invalid x, y, or color code passed 
  */
-int p_screen_putch(int x, int y, int color, char c);
+int p_terminal_putch(int x, int y, int color, char c);
 
 /**
  * @brief  Put a string at specified x and y coordinates
@@ -126,7 +131,7 @@ int p_screen_putch(int x, int y, int color, char c);
  *
  * @return 0 on success, -1 when invalid x, y, or color code passed.
  */
-int p_screen_putstr(int x, int y, int color, const char *str);
+int p_terminal_putstr(int x, int y, int color, const char *str);
 
 // === Scene Module API ===
 
@@ -205,23 +210,5 @@ void *p_arena_reserve(struct p_arena *arena, size_t bytes);
  * @return 0 on success
  */
 int p_arena_release(struct p_arena *arena);
-
-// === Event Module API ===
-
-#define P_MAX_EVENTS 32
-
-enum p_event_type{
-	P_EVENT_QUIT,
-	P_EVENT_KEY_PRESSED,
-};
-
-struct p_event {
-	enum p_event_type type;
-	union {
-		struct {
-			int key_code;
-		} key;
-	} data;
-};
 
 #endif 
