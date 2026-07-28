@@ -6,18 +6,36 @@
 #include "p_scene_internal.h"
 
 #define DEFAULT_TARGET_FPS 60
+#define BACKING_BUFFER_SIZE 1024 * 1024
 
-static int __p_config_load(struct p_game_config *config);
+static int __pocket_load_config(struct p_game_config *config);
+
+// Reserve memory for frame_arena in BSS segment
+static unsigned char backing_buffer[BACKING_BUFFER_SIZE]; 
+static struct p_arena frame_arena;
 
 static int is_running = 1; 
 static int target_fps;
 
-void p_engine_ignite(void)
+int pocket_init(struct p_game_config* config)
+{	
+	__p_input_init();
+	__p_screen_clear();
+	__p_screen_hidecurs();
+	
+	if (__pocket_load_config(config) < 0)
+		return -1;
+
+	p_arena_init(&frame_arena, backing_buffer, (size_t)BACKING_BUFFER_SIZE);  
+	return 0;
+}
+
+int pocket_ignite(void)
 {
 	useconds_t target_usec = 1000000 / target_fps; // 1 sec = 1,000,000 micro sec
 	struct timespec s_time, e_time;
-
 	useconds_t elapsed_usec = 0;
+
 	while(is_running) {
 		float dt = elapsed_usec / 1000000.0f;
 		(void)clock_gettime(CLOCK_MONOTONIC, &s_time);
@@ -26,6 +44,7 @@ void p_engine_ignite(void)
 		__p_scene_draw();
 
 		__p_screen_update();
+		p_arena_clear(&frame_arena);
 
 		(void)clock_gettime(CLOCK_MONOTONIC, &e_time);
 		elapsed_usec = (e_time.tv_sec - s_time.tv_sec) * 1000000 // sec to microsec
@@ -34,34 +53,33 @@ void p_engine_ignite(void)
 		if (target_usec > elapsed_usec)
 			(void)usleep(target_usec - elapsed_usec);
 	}
-}
-
-int p_engine_init(struct p_game_config* config)
-{	
-	__p_input_init();
-	__p_screen_clear();
-	__p_screen_hidecurs();
-	
-	if (__p_config_load(config) < 0)
-		return -1;
 
 	return 0;
 }
 
-void p_engine_cleanup(void)
+int pocket_quit(void)
+{
+	is_running = 0;
+
+	return 0;
+}
+
+int pocket_cleanup(void)
 {
 	__p_screen_mvcurs(0, 0);
 	__p_screen_showcurs();
 	__p_input_restore();
 	__p_screen_clear();
+
+	return 0;
 }
 
-void p_engine_quit(void)
+void *pocket_reserve_frame_arena(size_t bytes)
 {
-	is_running = 0;
+	return p_arena_reserve(&frame_arena, bytes);	
 }
 
-static int __p_config_load(struct p_game_config *config)
+static int __pocket_load_config(struct p_game_config *config)
 {
 	if (config == NULL || config->on_init == NULL)
 		return -1;

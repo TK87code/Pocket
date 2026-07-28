@@ -11,7 +11,7 @@ int p_arena_init(struct p_arena *arena, void *backing_buffer, size_t arena_size)
 	return 0;
 }
 
-void *p_arena_alloc(struct p_arena *arena, size_t bytes) 
+void *p_arena_reserve(struct p_arena *arena, size_t bytes) 
 {
 	size_t remaining = arena->size - arena->offset;
 	if (remaining < bytes)

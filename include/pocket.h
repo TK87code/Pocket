@@ -7,7 +7,7 @@
 
 #include <stddef.h> // size_t
 
-// === Engine core API === 
+// === Pocket Engine API === 
 
 struct p_game_config {
 	void *user_data; // Pointer to store user data structure
@@ -19,28 +19,42 @@ struct p_game_config {
  * @brief  Initialize engine. This disables some terminal attributes
  * under the hood.
  * 
- * @param config structure passed by user.
+ * @param  config structure passed by user.
  *
- * @return 0 on success. ERROR-> -1 invalid config structure passed.
+ * @return  0 on success. ERROR-> -1 invalid config structure passed.
  */
-int p_engine_init(struct p_game_config *config);
+int pocket_init(struct p_game_config *config);
 
 /**
  * @brief  Start the game loop
- *
+ * 
+ * @return  0 on success.
  */
-void p_engine_ignite(void);
+int pocket_ignite(void);
 
 /**
- * @brief This function stops a game loop.
+ * @brief  This function stops a game loop.
+ * 
+ * @return  0 on success.
  */
-void p_engine_quit(void);
+int pocket_quit(void);
 
 /**
- * @brief Clean up engine. User should call this before exit, otherwise the user terminal
+ * @brief  Clean up engine. User should call this before exit, otherwise the user terminal
  * will be broken(some attributes will still be disabled).
+ * 
+ * @return  0 on success.
  */
-void p_engine_cleanup(void);
+int pocket_cleanup(void);
+
+/**
+ * @brief  Reserve memory space in Frame Arena which will be cleaned up each frame.
+ *
+ * @param  bytes Size in bytes to reserve.
+ *
+ * @return  A pointer to reserved memory space, NULL if out of memory.
+ */
+void *pocket_reserve_frame_arena(size_t bytes);
 
 // === Input Module API === 
 
@@ -158,7 +172,7 @@ int p_arena_init(struct p_arena *arena, void *backing_buffer, size_t arena_size)
  *
  * @return Returns a pointer on success, or NULL if out of memory
  */
-void *p_arena_alloc(struct p_arena *arena, size_t bytes);
+void *p_arena_reserve(struct p_arena *arena, size_t bytes);
 
 /**
  * @brief  Reset the arena's allocation offset to 0, allowing the memory to be reused. 

@@ -1,78 +1,60 @@
-#include <stdlib.h> // calloc, free
+#include <stdio.h> 
 #include "pocket.h"
 
-struct my_game {
-	int x;
-	int y;
+struct game_state {
+	int frame_count;
 };
 
-void my_enter(void *user_data) 
-{
-	struct my_game *game = user_data;
-	game->x = 10;
-	game->y = 10;
-}
-
-void my_update(void *user_data, float dt)
+void my_scene_update(void *user_data, float dt)
 {
 	(void)dt;
-	struct my_game *game = user_data;
-	int key = p_input_read();
-
-	if (key == 'w')
-		game->y--;
-	if (key == 's')
-		game->y++;
-	if (key == 'a')
-		game->x--;
-	if (key == 'd')
-		game->x++;
-	if (key == 'q')
-		p_engine_quit();
+	struct game_state *state = (struct game_state *)user_data;
+	state->frame_count++;
 }
 
-void my_draw(void *user_data)
+void my_scene_draw(void *user_data)
 {
-	struct my_game *game = user_data;
+	struct game_state *state = (struct game_state *)user_data;
 
-	p_screen_putstr(2, 2, P_COLOR_GREEN, "test");
-	p_screen_putstr(2, 3, P_COLOR_DEFAULT, "TEST");
-	
-	p_screen_putch(game->x, game->y, P_COLOR_RED, '@');
+	char *text_buffer = (char *)pocket_reserve_frame_arena(64);
+
+	if (text_buffer != NULL) {
+		snprintf(text_buffer, 64, "Arena test - Frame count: %d", state->frame_count);
+		p_screen_putstr(5, 5, P_COLOR_CYAN, text_buffer);
+		p_screen_putstr(5, 7, P_COLOR_YELLOW, "Press Ctrl + C to exit");
+	}
+
 }
 
-void engine_ready(void *user_data) {
-	(void)user_data;
+void on_game_init(void *user_data)
+{
+	static struct p_scene main_scene = {0};
+	main_scene.user_data = user_data;
+	main_scene.on_update = my_scene_update;
+	main_scene.on_draw = my_scene_draw;
+
+	p_scene_register(0, &main_scene);
 	p_scene_swap(0);
 }
 
 int main(void) 
 {
-	struct my_game game = {0};
-
-	struct p_scene test_scene = {
-		.user_data = &game,
-		.on_enter = my_enter,
-		.on_update = my_update,
-		.on_draw = my_draw,
-		.on_exit = NULL
-	};
-
-	p_scene_register(0, &test_scene);
+	struct game_state state = {0};
+	state.frame_count = 0;
 
 	struct p_game_config config = {
-		.user_data = NULL,
-		.on_init = engine_ready,
-		.target_fps = 60
+		.user_data = &state,
+		.on_init = on_game_init,
+		.target_fps = 120
 	};
 
-	if (p_engine_init(&config) < 0) {
-		p_engine_cleanup();
+	if (pocket_init(&config) < 0) {
+		pocket_cleanup();
 		return -1;
 	}
 
-	p_engine_ignite();
-	p_engine_cleanup();
+	pocket_ignite();
+	pocket_cleanup();
 
 	return 0;
 }
