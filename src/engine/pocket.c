@@ -20,11 +20,12 @@ static int target_fps;
 
 int pkt_init(struct pkt_config* config)
 {	
+	__pkt_terminal_init();
+	__pkt_memory_init(&frame_arena, backing_buffer, (size_t)BACKING_BUFFER_SIZE); 
+	
 	if (__pkt_load_config(config) < 0)
 		return -1;
-
-	__pkt_terminal_init();
-	pkt_init_memory_arena(&frame_arena, backing_buffer, (size_t)BACKING_BUFFER_SIZE);  
+	 
 	return 0;
 }
 
@@ -50,7 +51,7 @@ int pkt_ignite(void)
 		__pkt_scene_draw();
 
 		__pkt_terminal_update();
-		pkt_release_memory(&frame_arena);
+		__pkt_memory_release(&frame_arena);
 
 		(void)clock_gettime(CLOCK_MONOTONIC, &e_time);
 		elapsed_usec = (e_time.tv_sec - s_time.tv_sec) * 1000000 // sec to microsec
