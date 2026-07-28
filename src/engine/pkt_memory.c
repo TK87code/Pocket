@@ -1,8 +1,9 @@
 #include <stddef.h> // size_t
 #include <stdlib.h> // malloc, free
+#include "pkt_memory_internal.h"
 #include "pocket.h"
 
-int p_arena_init(struct p_arena *arena, void *backing_buffer, size_t arena_size)
+int __pkt_memory_init(struct pkt_arena *arena, void *backing_buffer, size_t arena_size)
 {
 	arena->base = backing_buffer;
 	arena->size = arena_size;
@@ -11,7 +12,7 @@ int p_arena_init(struct p_arena *arena, void *backing_buffer, size_t arena_size)
 	return 0;
 }
 
-void *p_arena_reserve(struct p_arena *arena, size_t bytes) 
+void *__pkt_memory_reserve(struct pkt_arena *arena, size_t bytes) 
 {
 	size_t remaining = arena->size - arena->offset;
 	if (remaining < bytes)
@@ -23,7 +24,7 @@ void *p_arena_reserve(struct p_arena *arena, size_t bytes)
 	return ptr;
 }
 
-int p_arena_release(struct p_arena *arena) 
+int __pkt_memory_release(struct pkt_arena *arena) 
 {
 	arena->offset = 0;
 

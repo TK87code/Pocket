@@ -1,14 +1,14 @@
 #include "pocket.h"
-#include "p_event_internal.h"
+#include "pkt_event_internal.h"
 
-static struct p_event event_queue[P_MAX_EVENTS];
+static struct pkt_event event_queue[PKT_MAX_EVENTS];
 static int event_count = 0;
 
 // Push a new event into event queue. If event count is exceeded max event counts,
 // return -1, otherwise 0 on success.
-int __p_event_push(struct p_event *event)
+int __pkt_event_push(struct pkt_event *event)
 {
-	if (event_count >= P_MAX_EVENTS)
+	if (event_count >= PKT_MAX_EVENTS)
 		return -1;
 	event_queue[event_count] = *event;
 	event_count++;
@@ -18,7 +18,7 @@ int __p_event_push(struct p_event *event)
 
 // Poll event from queue. First in first out.
 // Return 0 on success, -1 if no event is in queue.
-int __p_event_poll(struct p_event *event)
+int __pkt_event_poll(struct pkt_event *event)
 {
 	if (event_count == 0)
 		return -1;

@@ -2,14 +2,14 @@
  * Pocket Public API
  *
  */
-#ifndef P_POCKET_H
-#define P_POCKET_H
+#ifndef POCKET_H
+#define POCKET_H
 
 #include <stddef.h> // size_t
 
-// === Pocket Engine API === 
+// === Engine CORE API === 
 
-struct p_game_config {
+struct pkt_config {
 	void *user_data; // Pointer to store user data structure
 	void (*on_init)(void *user_data); //func pointer for user initialization
 	int target_fps;
@@ -23,21 +23,21 @@ struct p_game_config {
  *
  * @return  0 on success. ERROR-> -1 invalid config structure passed.
  */
-int pocket_init(struct p_game_config *config);
+int pkt_init(struct pkt_config *config);
 
 /**
  * @brief  Start the game loop
  * 
  * @return  0 on success.
  */
-int pocket_ignite(void);
+int pkt_ignite(void);
 
 /**
  * @brief  This function stops a game loop.
  * 
  * @return  0 on success.
  */
-int pocket_quit(void);
+int pkt_quit(void);
 
 /**
  * @brief  Clean up engine and restore terminal attributes.
@@ -47,31 +47,19 @@ int pocket_quit(void);
  *
  * @return  0 on success.
  */
-int pocket_cleanup(void);
+int pkt_cleanup(void);
 
-/**
- * @brief  Reserve memory space in Frame Arena which will be cleaned up each frame by the engine,
- * so user does not have to clear.
- *
- * @warning  DO NOT free memory reserved by this function. It will cause segmentation fault
- * and crash the program. Memory release (re-setting memory offset) will be done end of the each
- * frame by the engine automatically.
- *
- * @param  bytes Size in bytes to reserve.
- *
- * @return  A pointer to reserved memory space, NULL if out of memory.
- */
-void *pocket_reserve_frame_arena(size_t bytes);
+// === Event Module API ===
 
-#define P_MAX_EVENTS 32
+#define PKT_MAX_EVENTS 32
 
-enum p_event_type{
-	P_EVENT_QUIT,
-	P_EVENT_KEY_PRESSED,
+enum pkt_event_type{
+	PKT_EVENT_QUIT,
+	PKT_EVENT_KEY_PRESSED,
 };
 
-struct p_event {
-	enum p_event_type type;
+struct pkt_event {
+	enum pkt_event_type type;
 	union {
 		struct {
 			int key_code;
@@ -91,23 +79,23 @@ struct p_event {
  *
  * @return  0 on success, -1 if no event is in queue.
  */
-int pocket_poll_event(struct p_event *event);
+int pkt_poll_event(struct pkt_event *event);
 
 // === Terminal Module API === 
 
-#define P_DEFAULT_SWIDTH 80
-#define P_DEFAULT_SHEIGHT 24
+#define PKT_DEFAULT_SWIDTH 80
+#define PKT_DEFAULT_SHEIGHT 24
 
 // COLOR CODES
-#define P_COLOR_DEFAULT 0 
-#define P_COLOR_BLACK 30 
-#define P_COLOR_RED 31
-#define P_COLOR_GREEN 32
-#define P_COLOR_YELLOW 33
-#define P_COLOR_BLUE 34
-#define P_COLOR_MAGENTA 35
-#define P_COLOR_CYAN 36
-#define P_COLOR_WHITE 37
+#define PKT_COLOR_DEFAULT 0 
+#define PKT_COLOR_BLACK 30 
+#define PKT_COLOR_RED 31
+#define PKT_COLOR_GREEN 32
+#define PKT_COLOR_YELLOW 33
+#define PKT_COLOR_BLUE 34
+#define PKT_COLOR_MAGENTA 35
+#define PKT_COLOR_CYAN 36
+#define PKT_COLOR_WHITE 37
 
 /**
  * @brief  Put a character at specified x and y coordinates
@@ -119,7 +107,7 @@ int pocket_poll_event(struct p_event *event);
  *
  * @return 0 on success -1 when invalid x, y, or color code passed 
  */
-int p_terminal_putch(int x, int y, int color, char c);
+int pkt_putch(int x, int y, int color, char c);
 
 /**
  * @brief  Put a string at specified x and y coordinates
@@ -131,13 +119,13 @@ int p_terminal_putch(int x, int y, int color, char c);
  *
  * @return 0 on success, -1 when invalid x, y, or color code passed.
  */
-int p_terminal_putstr(int x, int y, int color, const char *str);
+int pkt_putstr(int x, int y, int color, const char *str);
 
 // === Scene Module API ===
 
-#define P_MAX_SCENES 16 // Max scene slot available for user to register
+#define PKT_MAX_SCENES 16 // Max scene slot available for user to register
 
-struct p_scene {
+struct pkt_scene {
 	void *user_data;
 	// parameters: user data and deltatime
 	void (*on_enter)(void *user_data); // The user defined func which is called once when enter
@@ -148,14 +136,14 @@ struct p_scene {
 
 /**
  * @brief Register user-defined scene. Scene ID must be 0 or greater and
- *        does not exceed P_MAX_SCENES
+ *        does not exceed PKT_MAX_SCENES
  *
- * @param  scene_id scene id (0 < X < P_MAX_SCENES)
- * @param  scene a pointer to struct p_scene
+ * @param  scene_id scene id (0 < X < PKT_MAX_SCENES)
+ * @param  scene a pointer to struct pkt_scene
  *
  * @return return 0 on success. -1 on failure 
  */
-int p_scene_register(int scene_id, struct p_scene *scene);
+int pkt_register_scene(int scene_id, struct pkt_scene *scene);
 
 /**
  * @brief Swap to the registered scene specified by ID  
@@ -164,22 +152,36 @@ int p_scene_register(int scene_id, struct p_scene *scene);
  *
  * @return 0 on success ERROR-> -1: Invalid scene id
  */
-int p_scene_swap(int next_scene_id);
+int pkt_swap_scene(int next_scene_id);
 
 /**
  * @brief Get current scene
  *
  * @return Returns scene ID. -1 means no scenes registered yet 
  */
-int p_scene_get(void);
+int pkt_get_scene(void);
 
 // === Memory Arena API ===
 
-struct p_arena {
+struct pkt_arena {
 	unsigned char *base; // pointer to the top of arena
 	size_t size;		// Total size of arena
 	size_t offset;		// How much memory used in arena 
 };
+
+/**
+ * @brief  Reserve memory space in Frame Arena which will be cleaned up each frame by the engine,
+ * so user does not have to clear.
+ *
+ * @warning  DO NOT free memory reserved by this function. It will cause segmentation fault
+ * and crash the program. Memory release (re-setting memory offset) will be done end of the each
+ * frame by the engine automatically.
+ *
+ * @param  bytes Size in bytes to reserve.
+ *
+ * @return  A pointer to reserved memory space, NULL if out of memory.
+ */
+void *pkt_reserve_scratch_memory(size_t bytes);
 
 /**
  * @brief Initializes a memory arena with a pre-allocated backing buffer 
@@ -190,7 +192,7 @@ struct p_arena {
  *
  * @return 0 on success 
  */
-int p_arena_init(struct p_arena *arena, void *backing_buffer, size_t arena_size);
+int pkt_init_memory_arena(struct pkt_arena *arena, void *backing_buffer, size_t arena_size);
 
 /**
  * @brief  Allocate memory from arena and returns the pointer to the designated memory
@@ -200,7 +202,7 @@ int p_arena_init(struct p_arena *arena, void *backing_buffer, size_t arena_size)
  *
  * @return Returns a pointer on success, or NULL if out of memory
  */
-void *p_arena_reserve(struct p_arena *arena, size_t bytes);
+void *pkt_reserve_memory(struct pkt_arena *arena, size_t bytes);
 
 /**
  * @brief  Release the memory arena reserved, allowing the memory to be reused. 
@@ -209,6 +211,6 @@ void *p_arena_reserve(struct p_arena *arena, size_t bytes);
  *
  * @return 0 on success
  */
-int p_arena_release(struct p_arena *arena);
+int pkt_release_memory(struct pkt_arena *arena);
 
 #endif 
