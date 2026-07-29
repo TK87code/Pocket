@@ -3,6 +3,8 @@
 #include <unistd.h>	//STDIN_FILENO 
 #include <stdlib.h>     //calloc, free
 #include <sys/ioctl.h>      // ioctl, TIOCGWINSZ
+#include <signal.h>	// SIGWINCH, sig_atomic_t
+#include <string.h>	// memset
 #include "pocket.h"
 #include "pkt_terminal_internal.h"
 
@@ -21,8 +23,12 @@ static void __pkt_terminal_start_altbuff(void);
 static void __pkt_terminal_stop_altbuff(void);
 static void __pkt_terminal_load_config(struct pkt_config *config);
 static void __pkt_terminal_resize(int row, int col);
+static void __pkt_terminal_flag_sigwinch(int sig);
+static void __pkt_terminal_handle_sigwinch(void);
 
 static struct termios original_term;
+static volatile sig_atomic_t is_window_resized = 0; // Force compiler to see this variable
+
 static struct pkt_cell *front_buffer;
 static struct pkt_cell *back_buffer;
 
@@ -49,6 +55,8 @@ int __pkt_terminal_init(struct pkt_config *config)
 	new_term.c_cc[VTIME] = 0; // get realtime input 
 	tcsetattr(STDIN_FILENO, TCSANOW, &new_term); // Set terminal attribute immediately(TCSANOW)
 	
+	signal(SIGWINCH, __pkt_terminal_flag_sigwinch); // Register window resize(by game player) signal handler to OS
+
 	__pkt_terminal_start_altbuff();
 	__pkt_terminal_hidecurs();
 	__pkt_terminal_clear();
@@ -92,6 +100,8 @@ int __pkt_terminal_getch(void)
 
 int __pkt_terminal_update(void)
 {
+	__pkt_terminal_handle_sigwinch();
+
 	for (int y = 0; y < row; y++) {
 		for (int x = 0; x < col; x++){
 			if (back_buffer[y * col + x].c != front_buffer[y * col + x].c 
@@ -202,4 +212,25 @@ static void __pkt_terminal_load_config(struct pkt_config *c)
 static void __pkt_terminal_resize(int row, int col)
 {
 	printf("\x1b[8;%d;%dt", row, col);
+}
+
+// Just flag if window resized by OS
+static void __pkt_terminal_flag_sigwinch(int sig)
+{
+	(void)sig;
+	is_window_resized = 1;
+}
+
+// Bring back the terminal size to configured game size. Clear screen, then zero clear front buffer
+// so that every cells will be re-drawn in next frame.
+static void __pkt_terminal_handle_sigwinch(void)
+{
+	if (is_window_resized) {
+		is_window_resized = 0;
+
+		__pkt_terminal_resize(row, col);
+		__pkt_terminal_clear();
+		memset(front_buffer, 0, sizeof(struct pkt_cell) * col * row);
+
+	}
 }
