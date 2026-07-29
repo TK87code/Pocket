@@ -12,8 +12,18 @@
 struct pkt_config {
 	void *user_data; // Pointer to store user data structure
 	void (*on_init)(void *user_data); //func pointer for user initialization
-	int target_fps;
+	int target_fps; // Target fps value that user want to achieve
+	int screen_col; // number of columns on screen
+	int screen_row; // number of rows on screen
 };
+
+/**
+ * @brief  Get a default configuration structure initialized with safe values.
+ * Use this configuration and change parameters you want to customize.
+ *
+ * @return struct pkt_config with default parameters. 
+ */
+struct pkt_config pkt_get_default_config(void);
 
 /**
  * @brief  Initialize engine. This disables some terminal attributes
@@ -21,7 +31,8 @@ struct pkt_config {
  * 
  * @param  config structure passed by user.
  *
- * @return  0 on success. ERROR-> -1 invalid config structure passed.
+ * @return  0 on success. 
+ * ERROR-> -1: Failed to initialize terminal -2: invalid config.
  */
 int pkt_init(struct pkt_config *config);
 
@@ -50,8 +61,6 @@ int pkt_quit(void);
 int pkt_cleanup(void);
 
 // === Event Module API ===
-
-#define PKT_MAX_EVENTS 32
 
 enum pkt_event_type{
 	PKT_EVENT_QUIT,
@@ -82,9 +91,6 @@ struct pkt_event {
 int pkt_poll_event(struct pkt_event *event);
 
 // === Terminal Module API === 
-
-#define PKT_DEFAULT_SWIDTH 80
-#define PKT_DEFAULT_SHEIGHT 24
 
 // COLOR CODES
 #define PKT_COLOR_DEFAULT 0 
@@ -122,8 +128,6 @@ int pkt_putch(int x, int y, int color, char c);
 int pkt_putstr(int x, int y, int color, const char *str);
 
 // === Scene Module API ===
-
-#define PKT_MAX_SCENES 16 // Max scene slot available for user to register
 
 struct pkt_scene {
 	void *user_data;

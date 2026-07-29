@@ -6,25 +6,38 @@
 #include "pkt_event_internal.h"
 #include "pkt_memory_internal.h"
 
-#define DEFAULT_TARGET_FPS 60
-#define BACKING_BUFFER_SIZE 1024 * 1024
+#define PKT_DEFAULT_TARGET_FPS 60
+#define PKT_BACKING_BUFFER_SIZE (1024 * 1024)
 
 static int __pkt_load_config(struct pkt_config *config);
 
 // Reserve memory for frame_arena in BSS segment
-static unsigned char backing_buffer[BACKING_BUFFER_SIZE]; 
+static unsigned char backing_buffer[PKT_BACKING_BUFFER_SIZE]; 
 static struct pkt_arena frame_arena;
 
 static int is_running = 1; 
 static int target_fps;
 
+struct pkt_config pkt_get_default_config(void)
+{
+	struct pkt_config c = {0};
+	c.target_fps = PKT_DEFAULT_TARGET_FPS;
+	c.screen_col = PKT_DEFAULT_SCOL;
+	c.screen_row = PKT_DEFAULT_SROW;
+	c.user_data = NULL;
+	c.on_init = NULL;
+
+	return c;
+}
+
 int pkt_init(struct pkt_config* config)
 {	
-	__pkt_terminal_init();
-	__pkt_memory_init(&frame_arena, backing_buffer, (size_t)BACKING_BUFFER_SIZE); 
+	if (__pkt_terminal_init(config) < 0)
+		return -1;
+	__pkt_memory_init(&frame_arena, backing_buffer, (size_t)PKT_BACKING_BUFFER_SIZE); 
 	
 	if (__pkt_load_config(config) < 0)
-		return -1;
+		return -2;
 	 
 	return 0;
 }
@@ -137,8 +150,8 @@ static int __pkt_load_config(struct pkt_config *config)
 	else
 		config->on_init(config->user_data);
 
-	if (config->target_fps <= 0)
-		target_fps = DEFAULT_TARGET_FPS;
+	if (config->target_fps <= 0 || config->target_fps > 360)
+		target_fps = PKT_DEFAULT_TARGET_FPS;
 	else
 		target_fps = config->target_fps;
 

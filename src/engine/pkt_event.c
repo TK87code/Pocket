@@ -1,6 +1,8 @@
 #include "pocket.h"
 #include "pkt_event_internal.h"
 
+#define PKT_MAX_EVENTS 32
+
 static struct pkt_event event_queue[PKT_MAX_EVENTS];
 static int event_count = 0;
 

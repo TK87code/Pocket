@@ -1,6 +1,8 @@
 #include <stddef.h> // NULL
 #include "pocket.h"
 
+#define PKT_MAX_SCENES 16 
+
 static struct pkt_scene registered_scenes[PKT_MAX_SCENES];
 
 static int current_scene_id = -1; // -1 means no scenes is set currently

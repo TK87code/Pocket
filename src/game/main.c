@@ -49,11 +49,10 @@ int main(void)
 	struct game_state state = {0};
 	state.frame_count = 0;
 
-	struct pkt_config config = {
-		.user_data = &state,
-		.on_init = on_game_init,
-		.target_fps = 120
-	};
+	struct pkt_config config = pkt_get_default_config();
+	config.user_data = &state;
+	config.on_init = on_game_init;
+	config.target_fps = 120;
 
 	if (pkt_init(&config) < 0) {
 		pkt_cleanup();
