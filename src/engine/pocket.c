@@ -101,14 +101,14 @@ int pkt_poll_event(struct pkt_event *event)
 	return __pkt_event_poll(event);
 }
 
-int pkt_putch(int x, int y, int color, char c)
+int pkt_putch(int x, int y, int fcolor, int bcolor, char c)
 {
-	return __pkt_terminal_putch(x, y, color, c);
+	return __pkt_terminal_putch(x, y, fcolor, bcolor, c);
 }
 
-int pkt_putstr(int x, int y, int color, const char *str)
+int pkt_putstr(int x, int y, int fcolor, int bcolor, const char *str)
 {
-	return __pkt_terminal_putstr(x, y, color, str);
+	return __pkt_terminal_putstr(x, y, fcolor, bcolor, str);
 }
 
 int pkt_register_scene(int scene_id, struct pkt_scene *scene)

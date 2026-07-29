@@ -9,6 +9,10 @@
 
 // === Engine CORE API === 
 
+/** [Note] Applications created with Pocket engine does NOT allow players to resize window, because it break the
+* 	  game layouts. If the engine detected window resizing by OS, it simply bring back to the size 
+*	  which configured in this structure.
+*/        
 struct pkt_config {
 	void *user_data; // Pointer to store user data structure
 	void (*on_init)(void *user_data); //func pointer for user initialization
@@ -108,24 +112,26 @@ int pkt_poll_event(struct pkt_event *event);
  *
  * @param  x x position(col)
  * @param  y y position(row)
- * @param  color color codes defined in pocket.h
+ * @param  fcolor Font color specified by PKT_COLOR_XXXX code
+ * @param  bcolor Background color specified by PKT_COLOR_XXXX code
  * @param  c character to draw
  *
  * @return 0 on success -1 when invalid x, y, or color code passed 
  */
-int pkt_putch(int x, int y, int color, char c);
+int pkt_putch(int x, int y, int fcolor, int bcolor, char c);
 
 /**
  * @brief  Put a string at specified x and y coordinates
  *
  * @param  x x position(col)
  * @param  y y position(row)
- * @param  color color codes defined in pocket.h
+ * @param  fcolor Font color specified by PKT_COLOR_XXXX code 
+ * @param  bcolor Background color specified by PKT_COLOR_XXXX code
  * @param  str String to draw
  *
  * @return 0 on success, -1 when invalid x, y, or color code passed.
  */
-int pkt_putstr(int x, int y, int color, const char *str);
+int pkt_putstr(int x, int y, int fcolor, int bcolor, const char *str);
 
 // === Scene Module API ===
 

@@ -5,19 +5,21 @@
 #include <sys/ioctl.h>      // ioctl, TIOCGWINSZ
 #include <signal.h>	// SIGWINCH, sig_atomic_t
 #include <string.h>	// memset
+#include <stdint.h> 
 #include "pocket.h"
 #include "pkt_terminal_internal.h"
 
-struct pkt_cell {
-	char c;
-	int color;
+struct pkt_cell { // 6 bytes
+	uint32_t ch;
+	uint8_t fcolor;
+	uint8_t bcolor;
 };
 
 static void __pkt_terminal_clear(void);
 static void __pkt_terminal_hidecurs(void);
 static void __pkt_terminal_showcurs(void);
 static void __pkt_terminal_mvcurs(int x, int y);
-static void __pkt_terminal_setfc(int color);
+static void __pkt_terminal_set_color(int fcolor, int bcolor);
 static int __pkt_terminal_init_buffers(void);
 static void __pkt_terminal_start_altbuff(void);
 static void __pkt_terminal_stop_altbuff(void);
@@ -25,6 +27,8 @@ static void __pkt_terminal_load_config(struct pkt_config *config);
 static void __pkt_terminal_resize(int row, int col);
 static void __pkt_terminal_flag_sigwinch(int sig);
 static void __pkt_terminal_handle_sigwinch(void);
+static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char);
+static void __pkt_terminal_unpack_utf8(char *buf, uint32_t ch);
 
 static struct termios original_term;
 static volatile sig_atomic_t is_window_resized = 0; // Force compiler to see this variable
@@ -104,16 +108,36 @@ int __pkt_terminal_update(void)
 
 	for (int y = 0; y < row; y++) {
 		for (int x = 0; x < col; x++){
-			if (back_buffer[y * col + x].c != front_buffer[y * col + x].c 
-					|| back_buffer[y * col + x].color != front_buffer[y * col + x].color) {
+			struct pkt_cell bcell = back_buffer[y * col + x];
+			struct pkt_cell fcell = front_buffer[y * col + x];
+			
+			// if ch is 1, it means its fullwidth character's last half
+			if (bcell.ch == 1) {
+				front_buffer[y * col + x] = bcell;
+
+				back_buffer[y * col + x].ch = ' ';
+				back_buffer[y * col + x].fcolor = PKT_COLOR_DEFAULT;
+				back_buffer[y * col + x].bcolor = PKT_COLOR_DEFAULT;
+				continue;
+			}
+
+			if (bcell.ch != fcell.ch || bcell.fcolor != fcell.fcolor || bcell.bcolor != fcell.bcolor) {
 				__pkt_terminal_mvcurs(x, y);
-				__pkt_terminal_setfc(back_buffer[y * col + x].color);
-				printf("%c", back_buffer[y * col + x].c);
-				front_buffer[y * col + x] = back_buffer[y * col + x];
+				__pkt_terminal_set_color(bcell.fcolor, bcell.bcolor);
+				
+				if (bcell.ch == 0 || bcell.ch == ' ') {
+					printf(" ");
+				} else {
+					char buf[5] = {0};
+					__pkt_terminal_unpack_utf8(buf, bcell.ch);
+					printf("%s", buf);	
+				}
+				front_buffer[y * col + x] = bcell;
 			}	
 
-			back_buffer[y * col + x].c = ' ';
-			back_buffer[y * col + x].color = PKT_COLOR_DEFAULT;
+			back_buffer[y * col + x].ch = ' ';
+			back_buffer[y * col + x].fcolor = PKT_COLOR_DEFAULT;
+			back_buffer[y * col + x].bcolor = PKT_COLOR_DEFAULT;
 		}
 	}
 
@@ -121,28 +145,100 @@ int __pkt_terminal_update(void)
 	return 0;
 }
 
-int __pkt_terminal_putch(int x, int y, int color, char c)
+int __pkt_terminal_putch(int x, int y, int fcolor, int bcolor, char c)
 {
 	if (x < 0 || x >= col || y < 0 || y >= row)
 		return -1;
-	back_buffer[y * col + x].c = c;
-	back_buffer[y * col + x].color = color;
+	back_buffer[y * col + x].ch = c;
+	back_buffer[y * col + x].fcolor = fcolor;
+	back_buffer[y * col + x].bcolor = bcolor;
+	return 0;
+}
+
+int __pkt_terminal_putstr(int x, int y, int fcolor, int bcolor, const char *str)
+{
+	if (y < 0 || y >= row)
+		return -1;
+	int i = 0;
+	int current_x = x;
+
+	while (str[i] != '\0') {
+		if (current_x < 0 || current_x >= col)
+			break;
+
+		uint32_t packed_ch = 0;
+		int bytes = __pkt_terminal_pack_utf8(&str[i], &packed_ch);
+
+		int width = (bytes >= 3) ? 2 : 1; // fullwidth character
+
+		back_buffer[y * col + current_x].ch = packed_ch;
+		back_buffer[y * col + current_x].fcolor = fcolor;
+		back_buffer[y * col + current_x].bcolor = bcolor;
+		
+		// last half of fullwidth character. set 1 in ch as a mark so thay terminal_update() knows 
+		if (width == 2 && current_x + 1 < col) {
+			back_buffer[y * col + current_x + 1].ch = 1;
+			back_buffer[y * col + current_x + 1].fcolor = fcolor;
+			back_buffer[y * col + current_x + 1].bcolor = bcolor;
+		}
+
+		current_x += width;
+		i += bytes;
+	}
 
 	return 0;
 }
 
-int __pkt_terminal_putstr(int x, int y, int color, const char *str)
+// Read bytes of UTF-8, pack the character in 32bits box(out_char)
+// This returns the bytes of the character read
+// [REF] https://ja.wikipedia.org/wiki/UTF-8
+static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char)
 {
-	if (x < 0 || x >= col || y < 0 || y >= row)
-		return -1;
+	unsigned char c1 = (unsigned char)str[0];
+	if (c1 == '\0')
+		return 0;
+	
+	if ((c1 & 0x80) == 0x00) { // 1 byte (ASCII)
+		*out_char = (uint32_t)(unsigned char)c1;
+		return 1; 
+	} else if ((c1 & 0xE0) == 0xC0) {
+		*out_char = ((uint32_t)(unsigned char)c1 << 8) | (uint32_t)(unsigned char)str[1];
+		return 2;
+	} else if ((c1 & 0xF0) == 0xE0) {
+		*out_char = ((uint32_t)(unsigned char)c1 << 16) | ((uint32_t)(unsigned char)str[1] << 8) 
+			| (uint32_t)(unsigned char)str[2];
+		return 3;
+	} else if ((c1 & 0xF8) == 0xF0) {
+		*out_char = ((uint32_t)(unsigned char)c1 << 24) | ((uint32_t)(unsigned char)str[1] << 16) 
+			| ((uint32_t)(unsigned char)str[2] << 8) | (uint32_t)(unsigned char)str[3];
+		return 4;
+	}
 
+	*out_char = (uint32_t)c1;
+	return 1;
+}
+
+// [Warning] Must pass 5 bytes or bigger buffer must be passed utf8(1-4 bytes) + \0
+static void __pkt_terminal_unpack_utf8(char *buf, uint32_t ch)
+{
 	int i = 0;
-	while (str[i] != '\0') {
-		__pkt_terminal_putch(x + i, y, color, str[i]);
+	if (ch >= 0x1000000) { // boundary from 3 bytes to 4 bytes
+		buf[i] = (ch >> 24) & 0xFF;
+		i++;	
+	}
+
+	if (ch >= 0x10000) {
+		buf[i] = (ch >> 16) & 0xFF;
 		i++;
 	}
-	
-	return 0;
+
+	if (ch >= 0x100) {
+		buf[i] = (ch >> 8) & 0xFF;
+		i++;
+	}
+
+	buf[i] = ch & 0xFF;
+	buf[i + 1] = '\0';
 }
 
 static void __pkt_terminal_clear(void) 
@@ -176,10 +272,17 @@ static void __pkt_terminal_stop_altbuff(void)
 	printf("\x1b[?1049l");
 }
 
-// Set front color of terminal
-static void __pkt_terminal_setfc(int color)  
+static void __pkt_terminal_set_color(int fcolor, int bcolor)  
 {
-	printf("\x1b[%dm", color);
+	if (fcolor == PKT_COLOR_DEFAULT)
+		fcolor = 39;
+
+	if (bcolor == PKT_COLOR_DEFAULT)
+		bcolor = 49;
+	else
+		bcolor += 10; // fcolor + 10 is background color in ANSI
+	
+	printf("\x1b[%d;%dm", fcolor, bcolor); 
 }
 
 static int __pkt_terminal_init_buffers(void)

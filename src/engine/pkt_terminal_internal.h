@@ -10,8 +10,8 @@ int __pkt_terminal_update(void);
 int __pkt_terminal_init(struct pkt_config *config);
 int __pkt_terminal_restore(void);
 int __pkt_terminal_getch(void);
-int __pkt_terminal_putch(int x, int y, int color, char c);
-int __pkt_terminal_putstr(int x, int y, int color, const char *str);
+int __pkt_terminal_putch(int x, int y, int fcolor, int bcolor, char c);
+int __pkt_terminal_putstr(int x, int y, int fcolor, int bcolor, const char *str);
 
 #endif
 
