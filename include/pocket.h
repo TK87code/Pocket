@@ -176,7 +176,7 @@ int pkt_swap_scene(int next_scene_id);
  */
 int pkt_get_scene(void);
 
-// === Memory Arena API ===
+// === Memory Module API ===
 
 struct pkt_arena {
 	unsigned char *base; // pointer to the top of arena
@@ -228,4 +228,21 @@ void *pkt_reserve_memory(struct pkt_arena *arena, size_t bytes);
  */
 int pkt_release_memory(struct pkt_arena *arena);
 
-#endif 
+// === Log Module API ===
+
+enum pkt_log_level {
+	PKT_LOG_INFO,
+	PKT_LOG_WARN,
+	PKT_LOG_ERROR
+};
+
+#ifdef PKT_DEBUG
+int __pkt_log_out(enum pkt_log_level level, const char *fmt, ...);
+#define PKT_LOG(level, ...) __pkt_log_out(level, __VA_ARGS__)
+
+#else
+#define PKT_LOG(level, ...) ((void)0)
+
+#endif //#ifdef PKT_DEBUG
+
+#endif //#ifndeg POCKET_H

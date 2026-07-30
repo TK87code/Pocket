@@ -43,6 +43,7 @@ void on_game_init(void *user_data)
 
 	pkt_register_scene(0, &main_scene);
 	pkt_swap_scene(0);
+	
 }
 
 int main(void) 

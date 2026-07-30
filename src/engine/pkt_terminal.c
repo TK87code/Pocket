@@ -79,12 +79,13 @@ int __pkt_terminal_init(struct pkt_config *config)
 // Stop alternative buffer, show cursor, restore the original terminal size and color
 int __pkt_terminal_restore(void) 
 {
+	__pkt_terminal_resize(original_row, original_col);
 	__pkt_terminal_stop_altbuff();
 	__pkt_terminal_showcurs();
-	__pkt_terminal_resize(original_row, original_col);
 	fputs("\x1b[0m", stdout);
-	tcsetattr(STDIN_FILENO, TCSANOW, &original_term); // Restore original attribute 
 	fflush(stdout);
+
+	tcsetattr(STDIN_FILENO, TCSANOW, &original_term); // Restore original attribute 
 
 	free(front_buffer);
 	free(back_buffer);
