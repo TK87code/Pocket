@@ -24,6 +24,8 @@ struct pkt_config pkt_get_default_config(void)
 	c.target_fps = PKT_DEFAULT_TARGET_FPS;
 	c.screen_col = PKT_DEFAULT_SCOL;
 	c.screen_row = PKT_DEFAULT_SROW;
+	c.default_fcolor = PKT_COLOR_WHITE;
+	c.default_bcolor = PKT_COLOR_BLACK;
 	c.user_data = NULL;
 	c.on_init = NULL;
 
@@ -101,17 +103,17 @@ int pkt_poll_event(struct pkt_event *event)
 	return __pkt_event_poll(event);
 }
 
-int pkt_putch(int x, int y, int fcolor, int bcolor, char c)
+int pkt_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, char c)
 {
-	return __pkt_terminal_putch(x, y, fcolor, bcolor, c);
+	return __pkt_terminal_putc(x, y, fcolor, bcolor, c);
 }
 
-int pkt_putstr(int x, int y, int fcolor, int bcolor, const char *str)
+int pkt_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *str)
 {
-	return __pkt_terminal_putstr(x, y, fcolor, bcolor, str);
+	return __pkt_terminal_puts(x, y, fcolor, bcolor, str);
 }
 
-int pkt_register_scene(int scene_id, struct pkt_scene *scene)
+int pkt_register_scene(int scene_id, const struct pkt_scene *scene)
 {
 	return __pkt_scene_register(scene_id, scene);
 }

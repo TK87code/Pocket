@@ -8,17 +8,32 @@
 #include <stddef.h> // size_t
 
 // === Engine CORE API === 
+       
+// TODO ANSI color code by 0 - 255?
+// COLOR CODES
+enum pkt_color {
+	PKT_COLOR_BLACK = 30, 
+	PKT_COLOR_RED = 31,
+	PKT_COLOR_GREEN = 32,
+	PKT_COLOR_YELLOW = 33,
+	PKT_COLOR_BLUE = 34,
+	PKT_COLOR_MAGENTA = 35,
+	PKT_COLOR_CYAN = 36,
+	PKT_COLOR_WHITE = 37,
+};
 
 /** [Note] Applications created with Pocket engine does NOT allow players to resize window, because it break the
 * 	  game layouts. If the engine detected window resizing by OS, it simply bring back to the size 
 *	  which configured in this structure.
-*/        
+*/ 
 struct pkt_config {
 	void *user_data; // Pointer to store user data structure
 	void (*on_init)(void *user_data); //func pointer for user initialization
 	int target_fps; // Target fps value that user want to achieve
 	int screen_col; // number of columns on screen
 	int screen_row; // number of rows on screen
+	enum pkt_color default_fcolor; // Game's default font color
+	enum pkt_color default_bcolor; // Game's default background color
 };
 
 /**
@@ -96,32 +111,22 @@ int pkt_poll_event(struct pkt_event *event);
 
 // === Terminal Module API === 
 
-// COLOR CODES
-#define PKT_COLOR_DEFAULT 0 
-#define PKT_COLOR_BLACK 30 
-#define PKT_COLOR_RED 31
-#define PKT_COLOR_GREEN 32
-#define PKT_COLOR_YELLOW 33
-#define PKT_COLOR_BLUE 34
-#define PKT_COLOR_MAGENTA 35
-#define PKT_COLOR_CYAN 36
-#define PKT_COLOR_WHITE 37
-
 /**
- * @brief  Put a character at specified x and y coordinates
+ * @brief  Put a 1 byte character at specified x and y coordinates.
  *
  * @param  x x position(col)
  * @param  y y position(row)
- * @param  fcolor Font color specified by PKT_COLOR_XXXX code
- * @param  bcolor Background color specified by PKT_COLOR_XXXX code
+ * @param  fcolor Font color 
+ * @param  bcolor Background color 
  * @param  c character to draw
  *
  * @return 0 on success -1 when invalid x, y, or color code passed 
  */
-int pkt_putch(int x, int y, int fcolor, int bcolor, char c);
+int pkt_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, char c);
 
 /**
- * @brief  Put a string at specified x and y coordinates
+ * @brief  Put a string or multi byte character(UTF-8) at specified x and y coordinates.
+ * This function is much slower than pkt_putc().
  *
  * @param  x x position(col)
  * @param  y y position(row)
@@ -131,7 +136,7 @@ int pkt_putch(int x, int y, int fcolor, int bcolor, char c);
  *
  * @return 0 on success, -1 when invalid x, y, or color code passed.
  */
-int pkt_putstr(int x, int y, int fcolor, int bcolor, const char *str);
+int pkt_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *str);
 
 // === Scene Module API ===
 
@@ -153,7 +158,7 @@ struct pkt_scene {
  *
  * @return return 0 on success. -1 on failure 
  */
-int pkt_register_scene(int scene_id, struct pkt_scene *scene);
+int pkt_register_scene(int scene_id, const struct pkt_scene *scene);
 
 /**
  * @brief Swap to the registered scene specified by ID  

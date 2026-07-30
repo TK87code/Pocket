@@ -19,7 +19,7 @@ static void __pkt_terminal_clear(void);
 static void __pkt_terminal_hidecurs(void);
 static void __pkt_terminal_showcurs(void);
 static void __pkt_terminal_mvcurs(int x, int y);
-static void __pkt_terminal_set_color(int fcolor, int bcolor);
+static void __pkt_terminal_set_color(enum pkt_color fcolor, enum pkt_color bcolor);
 static int __pkt_terminal_init_buffers(void);
 static void __pkt_terminal_start_altbuff(void);
 static void __pkt_terminal_stop_altbuff(void);
@@ -28,7 +28,7 @@ static void __pkt_terminal_resize(int row, int col);
 static void __pkt_terminal_flag_sigwinch(int sig);
 static void __pkt_terminal_handle_sigwinch(void);
 static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char);
-static void __pkt_terminal_unpack_utf8(char *buf, uint32_t ch);
+static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size);
 
 static struct termios original_term;
 static volatile sig_atomic_t is_window_resized = 0; // Force compiler to see this variable
@@ -40,6 +40,8 @@ static int original_col = 0;
 static int original_row = 0;
 static int col = PKT_DEFAULT_SCOL;
 static int row = PKT_DEFAULT_SROW;
+static enum pkt_color user_default_fcolor = PKT_COLOR_WHITE;
+static enum pkt_color user_default_bcolor = PKT_COLOR_BLACK;
 
 int __pkt_terminal_init(struct pkt_config *config) 
 {
@@ -74,15 +76,13 @@ int __pkt_terminal_init(struct pkt_config *config)
 }
 
 // Recover terminal attribute before app stareted. 
-// Move cursor to top-left, show cursor, and clear screen
+// Stop alternative buffer, show cursor, restore the original terminal size and color
 int __pkt_terminal_restore(void) 
 {
-	__pkt_terminal_clear();
-	__pkt_terminal_showcurs();
-	__pkt_terminal_mvcurs(0, 0);
 	__pkt_terminal_stop_altbuff();
+	__pkt_terminal_showcurs();
 	__pkt_terminal_resize(original_row, original_col);
-
+	fputs("\x1b[0m", stdout);
 	tcsetattr(STDIN_FILENO, TCSANOW, &original_term); // Restore original attribute 
 	fflush(stdout);
 
@@ -102,9 +102,16 @@ int __pkt_terminal_getch(void)
 	return -1; // Key has not pressed 
 }
 
+/* Compare back buffer and front buffer, then update screen only if there is some changes between the buffers.
+* set_color() function will be calld only when current terminal color setting is different from the color that
+* is about to be drawn.
+*/ 
 int __pkt_terminal_update(void)
 {
 	__pkt_terminal_handle_sigwinch();
+
+	int fcpen = -1;
+	int bcpen = -1;
 
 	for (int y = 0; y < row; y++) {
 		for (int x = 0; x < col; x++){
@@ -116,28 +123,34 @@ int __pkt_terminal_update(void)
 				front_buffer[y * col + x] = bcell;
 
 				back_buffer[y * col + x].ch = ' ';
-				back_buffer[y * col + x].fcolor = PKT_COLOR_DEFAULT;
-				back_buffer[y * col + x].bcolor = PKT_COLOR_DEFAULT;
+				back_buffer[y * col + x].fcolor = user_default_fcolor;
+				back_buffer[y * col + x].bcolor = user_default_bcolor;
 				continue;
 			}
 
 			if (bcell.ch != fcell.ch || bcell.fcolor != fcell.fcolor || bcell.bcolor != fcell.bcolor) {
 				__pkt_terminal_mvcurs(x, y);
-				__pkt_terminal_set_color(bcell.fcolor, bcell.bcolor);
+				if (fcpen != bcell.fcolor || bcpen != bcell.bcolor) {
+					__pkt_terminal_set_color(bcell.fcolor, bcell.bcolor);
+					fcpen = bcell.fcolor;
+					bcpen = bcell.bcolor;
+				}
 				
 				if (bcell.ch == 0 || bcell.ch == ' ') {
-					printf(" ");
+					fputc(' ', stdout);	
+				} else if (bcell.ch < 0x80) { // 1 byte character 
+					fputc((char)bcell.ch, stdout);			
 				} else {
 					char buf[5] = {0};
-					__pkt_terminal_unpack_utf8(buf, bcell.ch);
-					printf("%s", buf);	
+					__pkt_terminal_unpack_utf8(buf, bcell.ch, sizeof(buf));
+					fputs(buf, stdout);
 				}
 				front_buffer[y * col + x] = bcell;
 			}	
 
 			back_buffer[y * col + x].ch = ' ';
-			back_buffer[y * col + x].fcolor = PKT_COLOR_DEFAULT;
-			back_buffer[y * col + x].bcolor = PKT_COLOR_DEFAULT;
+			back_buffer[y * col + x].fcolor = user_default_fcolor;
+			back_buffer[y * col + x].bcolor = user_default_bcolor;
 		}
 	}
 
@@ -145,7 +158,7 @@ int __pkt_terminal_update(void)
 	return 0;
 }
 
-int __pkt_terminal_putch(int x, int y, int fcolor, int bcolor, char c)
+int __pkt_terminal_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, char c)
 {
 	if (x < 0 || x >= col || y < 0 || y >= row)
 		return -1;
@@ -155,7 +168,7 @@ int __pkt_terminal_putch(int x, int y, int fcolor, int bcolor, char c)
 	return 0;
 }
 
-int __pkt_terminal_putstr(int x, int y, int fcolor, int bcolor, const char *str)
+int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *str)
 {
 	if (y < 0 || y >= row)
 		return -1;
@@ -219,8 +232,10 @@ static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char)
 }
 
 // [Warning] Must pass 5 bytes or bigger buffer must be passed utf8(1-4 bytes) + \0
-static void __pkt_terminal_unpack_utf8(char *buf, uint32_t ch)
+static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size)
 {
+	if (buf_size < 5)
+		return -1;
 	int i = 0;
 	if (ch >= 0x1000000) { // boundary from 3 bytes to 4 bytes
 		buf[i] = (ch >> 24) & 0xFF;
@@ -239,21 +254,23 @@ static void __pkt_terminal_unpack_utf8(char *buf, uint32_t ch)
 
 	buf[i] = ch & 0xFF;
 	buf[i + 1] = '\0';
+
+	return 0;
 }
 
 static void __pkt_terminal_clear(void) 
 {
-	printf("\x1b[2J"); // ANSI Escape sequence to clear screen 
+	fputs("\x1b[2J", stdout); // ANSI Escape sequence to clear screen 
 }
 
 static void __pkt_terminal_hidecurs(void) 
 {
-	printf("\x1b[?25l"); // ANSI escape sequence to hide cursor
+	fputs("\x1b[?25l", stdout); // ANSI escape sequence to hide cursor
 }
 
 static void __pkt_terminal_showcurs(void) 
 {
-	printf("\x1b[?25h"); // ANSI escape sequence to show cursor
+	fputs("\x1b[?25h", stdout); // ANSI escape sequence to show cursor
 }
 
 // Move cursor using ANSI escape sequence (ANSI coordinates starts with 1)
@@ -264,25 +281,23 @@ static void __pkt_terminal_mvcurs(int x, int y)
 
 static void __pkt_terminal_start_altbuff(void)
 {
-	printf("\x1b[?1049h");
+	fputs("\x1b[?1049h", stdout);
 }
 
 static void __pkt_terminal_stop_altbuff(void)
 {
-	printf("\x1b[?1049l");
+	fputs("\x1b[?1049l", stdout);
 }
 
-static void __pkt_terminal_set_color(int fcolor, int bcolor)  
+// Set font and background color. bcolor is fcolor + 10 in ANSI escape sequence.
+static void __pkt_terminal_set_color(enum pkt_color fcolor, enum pkt_color bcolor)  
 {
-	if (fcolor == PKT_COLOR_DEFAULT)
-		fcolor = 39;
+	printf("\x1b[%d;%dm", fcolor, bcolor + 10); 
+}
 
-	if (bcolor == PKT_COLOR_DEFAULT)
-		bcolor = 49;
-	else
-		bcolor += 10; // fcolor + 10 is background color in ANSI
-	
-	printf("\x1b[%d;%dm", fcolor, bcolor); 
+static void __pkt_terminal_resize(int row, int col)
+{
+	printf("\x1b[8;%d;%dt", row, col);
 }
 
 static int __pkt_terminal_init_buffers(void)
@@ -310,11 +325,16 @@ static void __pkt_terminal_load_config(struct pkt_config *c)
 		row = PKT_DEFAULT_SROW;
 	else
 		row = c->screen_row;
-}
 
-static void __pkt_terminal_resize(int row, int col)
-{
-	printf("\x1b[8;%d;%dt", row, col);
+	if (c->default_fcolor < 30 || c->default_fcolor > 37)
+		user_default_fcolor = PKT_COLOR_WHITE;
+	else
+		user_default_fcolor = c->default_fcolor;
+
+	if (c->default_bcolor < 30 || c->default_bcolor > 37)
+		user_default_bcolor = PKT_COLOR_BLACK;
+	else
+		user_default_bcolor = c->default_bcolor;
 }
 
 // Just flag if window resized by OS

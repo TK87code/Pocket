@@ -27,9 +27,9 @@ void my_scene_draw(void *user_data)
 
 	if (text_buffer != NULL) {
 		snprintf(text_buffer, 64, "Arena test - Frame count: %d", state->frame_count);
-		pkt_putstr(5, 5, PKT_COLOR_CYAN, PKT_COLOR_DEFAULT, text_buffer);
-		pkt_putstr(5, 7, PKT_COLOR_YELLOW, PKT_COLOR_RED, "Press Ctrl + C to exit");
-		pkt_putstr(5, 9, PKT_COLOR_YELLOW, PKT_COLOR_RED, "テスト！");
+		pkt_puts(5, 5, PKT_COLOR_CYAN, PKT_COLOR_BLACK, text_buffer);
+		pkt_puts(5, 7, PKT_COLOR_YELLOW, PKT_COLOR_RED, "Press Ctrl + C to exit");
+		pkt_puts(5, 9, PKT_COLOR_YELLOW, PKT_COLOR_RED, "テスト！");
 	}
 
 }
@@ -54,6 +54,7 @@ int main(void)
 	config.user_data = &state;
 	config.on_init = on_game_init;
 	config.target_fps = 120;
+	config.default_bcolor = PKT_COLOR_MAGENTA;
 
 	if (pkt_init(&config) < 0) {
 		pkt_cleanup();

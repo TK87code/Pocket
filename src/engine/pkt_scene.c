@@ -7,7 +7,7 @@ static struct pkt_scene registered_scenes[PKT_MAX_SCENES];
 
 static int current_scene_id = -1; // -1 means no scenes is set currently
 
-int __pkt_scene_register(int scene_id, struct pkt_scene *scene)
+int __pkt_scene_register(int scene_id, const struct pkt_scene *scene)
 {
 	if (scene_id < 0 || scene_id >= PKT_MAX_SCENES || scene == NULL)
 		return -1;
