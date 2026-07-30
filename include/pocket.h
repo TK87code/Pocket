@@ -130,14 +130,26 @@ int pkt_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, char c)
  *
  * @param  x x position(col)
  * @param  y y position(row)
- * @param  fcolor Font color specified by PKT_COLOR_XXXX code 
- * @param  bcolor Background color specified by PKT_COLOR_XXXX code
- * @param  str String to draw
+ * @param  fcolor Font color  
+ * @param  bcolor Background color
+ * @param  str A string to put 
  *
  * @return 0 on success, -1 when invalid x, y, or color code passed.
  */
 int pkt_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *str);
 
+/**
+ * @brief  Print a formatted string at x and y coordinates.
+ *
+ * @param  x x position (columns)
+ * @param  y y positon (rows)
+ * @param  fcolor Font color
+ * @param  bcolor Background color
+ * @param  fmt A formatted string to print
+ *
+ * @return  
+ */
+int pkt_printf(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *fmt, ...);
 // === Scene Module API ===
 
 struct pkt_scene {

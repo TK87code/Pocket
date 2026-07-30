@@ -26,8 +26,7 @@ void my_scene_draw(void *user_data)
 	char *text_buffer = (char *)pkt_reserve_scratch_memory(64);
 
 	if (text_buffer != NULL) {
-		snprintf(text_buffer, 64, "Arena test - Frame count: %d", state->frame_count);
-		pkt_puts(5, 5, PKT_COLOR_CYAN, PKT_COLOR_BLACK, text_buffer);
+		pkt_printf(5, 5, PKT_COLOR_CYAN, PKT_COLOR_BLACK, "Arena & print test - Frame count: %d", state->frame_count);
 		pkt_puts(5, 7, PKT_COLOR_YELLOW, PKT_COLOR_RED, "Press Ctrl + C to exit");
 		pkt_puts(5, 9, PKT_COLOR_YELLOW, PKT_COLOR_RED, "テスト！");
 	}

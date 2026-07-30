@@ -1,5 +1,7 @@
+#include <stdio.h>
 #include <time.h>    // clock_gettime
 #include <unistd.h>  // usleep
+#include <stdarg.h>
 #include "pocket.h"
 #include "pkt_terminal_internal.h"
 #include "pkt_scene_internal.h"
@@ -111,6 +113,17 @@ int pkt_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, char c)
 int pkt_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *str)
 {
 	return __pkt_terminal_puts(x, y, fcolor, bcolor, str);
+}
+
+int pkt_printf(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *fmt, ...)
+{
+	char buf[512] = {0};
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+
+	return __pkt_terminal_puts(x, y, fcolor, bcolor, buf);
 }
 
 int pkt_register_scene(int scene_id, const struct pkt_scene *scene)

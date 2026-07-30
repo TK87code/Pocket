@@ -6,6 +6,7 @@
 #include <signal.h>	// SIGWINCH, sig_atomic_t
 #include <string.h>	// memset
 #include <stdint.h> 
+#include <stdarg.h> // va_list, va_start, vfprintf, va_end
 #include "pocket.h"
 #include "pkt_terminal_internal.h"
 
