@@ -33,6 +33,7 @@ static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size);
 
 static struct termios original_term;
 static volatile sig_atomic_t is_window_resized = 0; // Force compiler to see this variable
+static int has_resized_ever = 0;
 
 static struct pkt_cell *front_buffer;
 static struct pkt_cell *back_buffer;
@@ -78,12 +79,15 @@ int __pkt_terminal_init(struct pkt_config *config)
 
 // Recover terminal attribute before app stareted. 
 // Stop alternative buffer, show cursor, restore the original terminal size and color
+// If window resized ever, place cursor all the way down so that it correctly restore the looks.
 int __pkt_terminal_restore(void) 
 {
 	__pkt_terminal_resize(original_row, original_col);
 	__pkt_terminal_stop_altbuff();
 	__pkt_terminal_showcurs();
 	fputs("\x1b[0m", stdout);
+	if (has_resized_ever == 1)	
+		fputs("\x1b[999;1H", stdout);
 	fflush(stdout);
 
 	tcsetattr(STDIN_FILENO, TCSANOW, &original_term); // Restore original attribute 
@@ -379,6 +383,7 @@ static void __pkt_terminal_flag_sigwinch(int sig)
 {
 	(void)sig;
 	is_window_resized = 1;
+	has_resized_ever = 1;
 }
 
 // Bring back the terminal size to configured game size. Clear screen, then zero clear front buffer
