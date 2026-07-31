@@ -200,6 +200,11 @@ int pkt_swap_scene(int next_scene_id);
 int pkt_get_scene(void);
 
 // === Memory Module API ===
+// ---------------------------------------------------------
+// 1. Arena Allocator (Linear Allocator)
+// Purpose: Dynamic allocation of variable-sized memory.
+//          Can only be reset entirely at once.
+// ---------------------------------------------------------
 
 struct pkt_arena {
 	unsigned char *base; // pointer to the top of arena
@@ -208,39 +213,37 @@ struct pkt_arena {
 };
 
 /**
- * @brief  Reserve memory space in Frame Arena which will be cleaned up each frame by the engine,
- * so user does not have to clear.
+ * @brief  Allocate memory from the scratch arena.This memory will be automatically reset by the engine at the end of each frames. 
  *
- * @warning  DO NOT free memory reserved by this function. It will cause segmentation fault
- * and crash the program. Memory release (re-setting memory offset) will be done end of the each
- * frame by the engine automatically.
+ * @warning  DO NOT free memory reserved by this function.
+ * Memory release will be done automatically by the engine at the end of each frames.
  *
- * @param  bytes Size in bytes to reserve.
+ * @param  bytes Size in bytes to allocate.
  *
- * @return  A pointer to reserved memory space, NULL if out of memory.
+ * @return  A pointer to allocated memory space, NULL if out of memory.
  */
-void *pkt_reserve_scratch_memory(size_t bytes);
+void *pkt_scratch_alloc(size_t bytes);
 
 /**
- * @brief Initializes a memory arena with a pre-allocated backing buffer 
+ * @brief Initializes a memory arena with a pre-allocated backing buffer. 
  *
- * @param  arena A pointer to the arena structure to initialize
- * @param  backing_buffer A pointer to the pre-allocated memory block
- * @param  arena_size Total size of the backing buffer in bytes
+ * @param  arena A pointer to the arena structure to initialize.
+ * @param  backing_buffer A pointer to the pre-allocated memory block.
+ * @param  arena_size Total size of the backing buffer in bytes.
  *
  * @return 0 on success 
  */
-int pkt_init_memory_arena(struct pkt_arena *arena, void *backing_buffer, size_t arena_size);
+int pkt_init_arena(struct pkt_arena *arena, void *backing_buffer, size_t arena_size);
 
 /**
- * @brief  Allocate memory from arena and returns the pointer to the designated memory
+ * @brief  Allocate memory from the arena by advancing its offset.
  *
- * @param  arena pointer to the arena which gives memory space  
- * @param  bytes the size of memory that user wants for this allocation
+ * @param  arena A pointer to the arena which gives memory space.
+ * @param  bytes the size of memory to allocate. 
  *
  * @return Returns a pointer on success, or NULL if out of memory
  */
-void *pkt_reserve_memory(struct pkt_arena *arena, size_t bytes);
+void *pkt_arena_alloc(struct pkt_arena *arena, size_t bytes);
 
 /**
  * @brief  Release the memory arena reserved, allowing the memory to be reused. 
@@ -249,7 +252,7 @@ void *pkt_reserve_memory(struct pkt_arena *arena, size_t bytes);
  *
  * @return 0 on success
  */
-int pkt_release_memory(struct pkt_arena *arena);
+int pkt_reset_arena(struct pkt_arena *arena);
 
 // === Log Module API ===
 

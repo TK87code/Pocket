@@ -12,7 +12,7 @@ int __pkt_memory_init(struct pkt_arena *arena, void *backing_buffer, size_t aren
 	return 0;
 }
 
-void *__pkt_memory_reserve(struct pkt_arena *arena, size_t bytes) 
+void *__pkt_memory_alloc(struct pkt_arena *arena, size_t bytes) 
 {
 	size_t remaining = arena->size - arena->offset;
 	if (remaining < bytes)
@@ -24,7 +24,7 @@ void *__pkt_memory_reserve(struct pkt_arena *arena, size_t bytes)
 	return ptr;
 }
 
-int __pkt_memory_release(struct pkt_arena *arena) 
+int __pkt_memory_reset(struct pkt_arena *arena) 
 {
 	arena->offset = 0;
 

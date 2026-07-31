@@ -68,7 +68,7 @@ int pkt_ignite(void)
 		__pkt_scene_draw();
 
 		__pkt_terminal_update();
-		__pkt_memory_release(&frame_arena);
+		__pkt_memory_reset(&frame_arena);
 
 		(void)clock_gettime(CLOCK_MONOTONIC, &e_time);
 		elapsed_usec = (e_time.tv_sec - s_time.tv_sec) * 1000000 // sec to microsec
@@ -95,9 +95,9 @@ int pkt_cleanup(void)
 	return __pkt_terminal_restore();
 }
 
-void *pkt_reserve_scratch_memory(size_t bytes)
+void *pkt_scratch_alloc(size_t bytes)
 {
-	return __pkt_memory_reserve(&frame_arena, bytes);	
+	return __pkt_memory_alloc(&frame_arena, bytes);	
 }
 
 int pkt_poll_event(struct pkt_event *event)
@@ -141,19 +141,19 @@ int pkt_get_scene(void)
 	return __pkt_scene_get();
 }
 
-int pkt_init_memory_arena(struct pkt_arena *arena, void *backing_buffer, size_t arena_size)
+int pkt_init_arena(struct pkt_arena *arena, void *backing_buffer, size_t arena_size)
 {
 	return __pkt_memory_init(arena, backing_buffer, arena_size);
 }
 
-void *pkt_reserve_memory(struct pkt_arena *arena, size_t bytes)
+void *pkt_arena_alloc(struct pkt_arena *arena, size_t bytes)
 {
-	return __pkt_memory_reserve(arena, bytes);
+	return __pkt_memory_alloc(arena, bytes);
 }
 
-int pkt_release_memory(struct pkt_arena *arena)
+int pkt_reset_arena(struct pkt_arena *arena)
 {
-	return __pkt_memory_release(arena);
+	return __pkt_memory_reset(arena);
 }
 
 // === Static functions ===
