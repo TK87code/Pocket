@@ -3,7 +3,7 @@ INCLUDE = include/
 
 TARGET = bin/demo
 
-SRC = src/game/*.c src/engine/*.c
+SRC = src/demo/demo.c src/engine/*.c
 
 ifeq ($(DEBUG), 1)
 	CFLAGS = -Wall -Wextra -g -O0 -DPKT_DEBUG
