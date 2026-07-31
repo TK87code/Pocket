@@ -29,6 +29,8 @@ void my_draw(void *user_data) {
 	(void)user_data;
 	pkt_puts(10, 10, PKT_COLOR_GREEN, PKT_COLOR_BLACK, "Hello, Pocket Engine!");
 	pkt_puts(10, 11, PKT_COLOR_YELLOW, PKT_COLOR_BLACK, "Press Escape to quit, and start coding your own special game!!");
+	pkt_puts(10, 12, PKT_COLOR_WHITE, PKT_COLOR_BLACK, "This supports UTF-8 あｱ†");
+	pkt_putc(10, 13, PKT_COLOR_RED, PKT_COLOR_BLACK, 's');
 }
 
 int main(void) {

@@ -1,12 +1,15 @@
+#define _XOPEN_SOURCE 500 // X/Open System Interfaces Extension (XSI) Issue 5
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>	//STDIN_FILENO 
-#include <stdlib.h>     //calloc, free
+#include <stdlib.h>     //calloc, free, mbtowc
 #include <sys/ioctl.h>      // ioctl, TIOCGWINSZ
 #include <signal.h>	// SIGWINCH, sig_atomic_t
 #include <string.h>	// memset
 #include <stdint.h> 
 #include <stdarg.h> // va_list, va_start, vfprintf, va_end
+#include <locale.h>
+#include <wchar.h>
 #include "pocket.h"
 #include "pkt_terminal_internal.h"
 
@@ -30,6 +33,7 @@ static void __pkt_terminal_flag_sigwinch(int sig);
 static void __pkt_terminal_handle_sigwinch(void);
 static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char);
 static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size);
+static void __pkt_terminal_write_cell(int x, int y, uint8_t fcolor, uint8_t bcolor, uint32_t ch);
 
 static struct termios original_term;
 static volatile sig_atomic_t is_window_resized = 0; // Force compiler to see this variable
@@ -48,7 +52,9 @@ static enum pkt_color user_default_bcolor = PKT_COLOR_BLACK;
 int __pkt_terminal_init(struct pkt_config *config) 
 {
 	__pkt_terminal_load_config(config);	
-	
+
+	setlocale(LC_ALL, "");
+
 	// Get original window size to restore later
 	struct winsize w;
 	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != -1) {
@@ -163,9 +169,7 @@ int __pkt_terminal_update(void)
 			if (bcell.ch == 1) {
 				front_buffer[y * col + x] = bcell;
 
-				back_buffer[y * col + x].ch = ' ';
-				back_buffer[y * col + x].fcolor = user_default_fcolor;
-				back_buffer[y * col + x].bcolor = user_default_bcolor;
+				__pkt_terminal_write_cell(x, y, user_default_fcolor, user_default_bcolor, ' ');
 				continue;
 			}
 
@@ -188,10 +192,8 @@ int __pkt_terminal_update(void)
 				}
 				front_buffer[y * col + x] = bcell;
 			}	
-
-			back_buffer[y * col + x].ch = ' ';
-			back_buffer[y * col + x].fcolor = user_default_fcolor;
-			back_buffer[y * col + x].bcolor = user_default_bcolor;
+			
+			__pkt_terminal_write_cell(x, y, user_default_fcolor, user_default_bcolor, ' ');
 		}
 	}
 
@@ -203,9 +205,7 @@ int __pkt_terminal_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcol
 {
 	if (x < 0 || x >= col || y < 0 || y >= row)
 		return -1;
-	back_buffer[y * col + x].ch = c;
-	back_buffer[y * col + x].fcolor = fcolor;
-	back_buffer[y * col + x].bcolor = bcolor;
+	__pkt_terminal_write_cell(x, y, fcolor, bcolor, c);
 	return 0;
 }
 
@@ -223,17 +223,14 @@ int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcol
 		uint32_t packed_ch = 0;
 		int bytes = __pkt_terminal_pack_utf8(&str[i], &packed_ch);
 
-		int width = (bytes >= 3) ? 2 : 1; // fullwidth character
+		wchar_t wc = 0;
+		mbtowc(&wc, &str[i], bytes);
+		int width = wcwidth(wc);
 
-		back_buffer[y * col + current_x].ch = packed_ch;
-		back_buffer[y * col + current_x].fcolor = fcolor;
-		back_buffer[y * col + current_x].bcolor = bcolor;
-		
+		__pkt_terminal_write_cell(current_x, y, fcolor, bcolor, packed_ch);
 		// last half of fullwidth character. set 1 in ch as a mark so thay terminal_update() knows 
 		if (width == 2 && current_x + 1 < col) {
-			back_buffer[y * col + current_x + 1].ch = 1;
-			back_buffer[y * col + current_x + 1].fcolor = fcolor;
-			back_buffer[y * col + current_x + 1].bcolor = bcolor;
+			__pkt_terminal_write_cell(current_x + 1, y, fcolor, bcolor, 1);
 		}
 
 		current_x += width;
@@ -398,4 +395,11 @@ static void __pkt_terminal_handle_sigwinch(void)
 		memset(front_buffer, 0, sizeof(struct pkt_cell) * col * row);
 
 	}
+}
+
+static void __pkt_terminal_write_cell(int x, int y, uint8_t fcolor, uint8_t bcolor, uint32_t ch)
+{
+	back_buffer[y * col + x].ch = ch;
+	back_buffer[y * col + x].fcolor = fcolor;
+	back_buffer[y * col + x].bcolor = bcolor;
 }
