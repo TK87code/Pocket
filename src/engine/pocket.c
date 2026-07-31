@@ -56,7 +56,7 @@ int pkt_ignite(void)
 		float dt = elapsed_usec / 1000000.0f;
 		(void)clock_gettime(CLOCK_MONOTONIC, &s_time);
 
-		int k = __pkt_terminal_getch();
+		int k = __pkt_terminal_read_input();
 		if (k != -1) {
 			struct pkt_event e;
 			e.type = PKT_EVENT_KEY_PRESSED;

@@ -94,14 +94,49 @@ int __pkt_terminal_restore(void)
 	return 0;
 }
 
-int __pkt_terminal_getch(void) 
+/*
+ * Order OS to read 1 byte directly from file descriptor. If first byte was 'ESC',
+ * read 2 bytes followed, and detect special characters.Also this function detect enter key which
+ * differs among OSs.
+ * Return the character if input is detected, otherwise -1.
+ */
+int __pkt_terminal_read_input(void) 
 {
 	unsigned char c;
 	// order OS to read 1 byte directly from file descriptor
-	if (read(STDIN_FILENO, &c, 1) == 1)
-		return c; // Key has pressed 
+	if (read(STDIN_FILENO, &c, 1) == 1) {
+		if (c == '\x1b') {
+			unsigned char seq[2];
 
-	return -1; // Key has not pressed 
+			if (read(STDIN_FILENO, &seq[0], 1) != 1)
+				return PKT_KEY_ESCAPE; 
+			if (read(STDIN_FILENO, &seq[1], 1) != 1)
+				return PKT_KEY_ESCAPE;
+
+			if (seq[0] == '[') {
+				switch (seq[1]) {
+				case 'A': 
+					return PKT_KEY_UP;
+				case 'B':
+					return PKT_KEY_DOWN;
+				case 'C':
+					return PKT_KEY_RIGHT;
+				case 'D':
+					return PKT_KEY_LEFT;
+				}
+			}
+
+			return PKT_KEY_ESCAPE;
+		}	
+		
+		if (c == '\r' || c == '\n') {
+			return PKT_KEY_ENTER;
+		}
+
+		return c;  
+	}
+
+	return -1;  
 }
 
 /* Compare back buffer and front buffer, then update screen only if there is some changes between the buffers.

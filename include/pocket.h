@@ -95,6 +95,17 @@ struct pkt_event {
 	} data;
 };
 
+enum pkt_keycode {
+	PKT_KEY_ENTER = 10,
+	PKT_KEK_ESCAPE = 27,
+	PKT_KEY_SPACE = 32,
+	PKT_KEY_UP = 1000, // Avoiding confliction with ASCII
+	PKT_KEY_DOWN,
+	PKT_KEY_RIGHT,
+	PKT_KEY_LEFT,
+	PKT_KEY_ESCAPE
+};
+
 /**
  * @brief  Poll event from the engine and store the memory address to the oldest event
  * to the event pointer provided. 
