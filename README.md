@@ -3,7 +3,9 @@ Markdown
 
 ## 🌟 What is Pocket Engine?
 Pocket Engine is an ultra-lightweight, zero-dependency C game engine designed strictly for the terminal.
-It uses only standard C libraries and OS-native APIs (ANSI escape sequences, termios). It is perfect for learning low-level programming, data-structure-centric design, and C language fundamentals.
+It uses only standard C libraries and OS-native APIs (ANSI escape sequences, termios). It is perfect for learning C language fundamentals as making games yourself.
+I myself is still beginner programmer, so this project started for my educatoinal purposes. 
+I tried to limit what this engine offers to fundamental functions which almost every applications uses. I might extend engine features, but those will be offered as an extension.
 
 ### ✨ Key Features
 * **Flicker-Free Rendering:** Built-in double buffering for smooth terminal graphics.
@@ -22,7 +24,7 @@ If you are using Git for your game project, this is the best way to keep the eng
 1. Open your terminal and navigate to your game's repository.
 2. Run the following command to add the engine into a `vendor/pocket_engine` directory:
 ```bash
-git submodule add [https://github.com/YOUR_USERNAME/pocket_engine.git](https://github.com/YOUR_USERNAME/pocket_engine.git) vendor/pocket_engine
+git submodule add https://github.com/TK87code/Pocket vendor/pocket
 ```
 
 ### Method B: Manual Copy (Easiest)
@@ -30,7 +32,7 @@ If you are not familiar with Git, simply download and copy the files.
 
 Download this repository.
 
-Create a vendor/pocket_engine/ folder in your game project.
+Create a vendor/pocket/ folder in your game project.
 
 Copy the include/ and src/ folders from the engine into your new folder.
 
@@ -105,23 +107,23 @@ int main(void) {
 You can compile your game directly from the terminal:
 
 ```Bash
-gcc main.c vendor/pocket_engine/src/engine/*.c -I vendor/pocket_engine/include -o my_game
+gcc main.c vendor/pocket/src/engine/*.c -I vendor/pocket/include -o my_game
 ./my_game
 ```
 
 ### Option 2: Using a Makefile
 
-For a better development experience, create a Makefile in your project root and paste this template:
+For a better development experience, you can create a Makefile in your project root and paste this template:
 
 ```Makefile
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -I vendor/pocket_engine/include
+CFLAGS = -Wall -Wextra -O2 -I vendor/pocket/include
 
 # Your game source files
 SRC = main.c
 
 # Engine source files
-ENGINE_SRC = $(wildcard vendor/pocket_engine/src/engine/*.c)
+ENGINE_SRC = $(wildcard vendor/pocket/src/engine/*.c)
 
 # Output executable name
 TARGET = my_game
@@ -139,5 +141,4 @@ Now, you only need to type make in your terminal to build your game!
 
 ## 📚 API Reference
 Pocket Engine provides various functions for drawing characters, colored text, formatted strings (like printf), and more.
-
-All available functions and their detailed usages are thoroughly documented in English inside the core header file: include/pocket.h. Please refer to pocket.h for the complete API documentation!
+All available functions and their detailed usages are documented inside the core header file: include/pocket.h. Please refer to pocket.h for the complete API documentation!
