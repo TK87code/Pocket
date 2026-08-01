@@ -4,7 +4,7 @@
 #include <unistd.h>	//STDIN_FILENO 
 #include <stdlib.h>     //calloc, free, mbtowc
 #include <sys/ioctl.h>      // ioctl, TIOCGWINSZ
-#include <signal.h>	// SIGWINCH, sig_atomic_t
+#include <signal.h>	// sig_atomic_t
 #include <string.h>	// memset
 #include <stdint.h> 
 #include <stdarg.h> // va_list, va_start, vfprintf, va_end
@@ -13,10 +13,11 @@
 #include "pocket.h"
 #include "pkt_terminal_internal.h"
 
-struct pkt_cell { // 6 bytes
+struct pkt_cell { // 7 bytes
 	uint32_t ch;
 	uint8_t fcolor;
 	uint8_t bcolor;
+	uint8_t attr;
 };
 
 static void __pkt_terminal_clear(void);
@@ -24,26 +25,26 @@ static void __pkt_terminal_hidecurs(void);
 static void __pkt_terminal_showcurs(void);
 static void __pkt_terminal_mvcurs(int x, int y);
 static void __pkt_terminal_set_color(enum pkt_color fcolor, enum pkt_color bcolor);
+static void __pkt_terminal_set_attr(uint8_t attr);
 static int __pkt_terminal_init_buffers(void);
 static void __pkt_terminal_start_altbuff(void);
 static void __pkt_terminal_stop_altbuff(void);
 static void __pkt_terminal_load_config(struct pkt_config *config);
 static void __pkt_terminal_resize(int row, int col);
 static void __pkt_terminal_flag_sigwinch(int sig);
-static void __pkt_terminal_handle_sigwinch(void);
 static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char);
 static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size);
-static void __pkt_terminal_write_cell(int x, int y, uint8_t fcolor, uint8_t bcolor, uint32_t ch);
+static void __pkt_terminal_write_cell(int x, int y, uint8_t fcolor, uint8_t bcolor, uint8_t attr, uint32_t ch);
 
 static struct termios original_term;
-static volatile sig_atomic_t is_window_resized = 0; // Force compiler to see this variable
-static int has_resized_ever = 0;
 
 static struct pkt_cell *front_buffer;
 static struct pkt_cell *back_buffer;
 
 static int original_col = 0;
 static int original_row = 0;
+static volatile sig_atomic_t pending_resize_event = 0;
+
 static int col = PKT_DEFAULT_SCOL;
 static int row = PKT_DEFAULT_SROW;
 static enum pkt_color user_default_fcolor = PKT_COLOR_WHITE;
@@ -92,8 +93,6 @@ int __pkt_terminal_restore(void)
 	__pkt_terminal_stop_altbuff();
 	__pkt_terminal_showcurs();
 	fputs("\x1b[0m", stdout);
-	if (has_resized_ever == 1)	
-		fputs("\x1b[999;1H", stdout);
 	fflush(stdout);
 
 	tcsetattr(STDIN_FILENO, TCSANOW, &original_term); // Restore original attribute 
@@ -155,10 +154,9 @@ int __pkt_terminal_read_input(void)
 */ 
 int __pkt_terminal_update(void)
 {
-	__pkt_terminal_handle_sigwinch();
-
 	int fcpen = -1;
 	int bcpen = -1;
+	int attrpen = -1;
 
 	for (int y = 0; y < row; y++) {
 		for (int x = 0; x < col; x++){
@@ -169,16 +167,21 @@ int __pkt_terminal_update(void)
 			if (bcell.ch == 1) {
 				front_buffer[y * col + x] = bcell;
 
-				__pkt_terminal_write_cell(x, y, user_default_fcolor, user_default_bcolor, ' ');
+				__pkt_terminal_write_cell(x, y, user_default_fcolor, user_default_bcolor, PKT_ATTR_NONE, ' ');
 				continue;
 			}
 
-			if (bcell.ch != fcell.ch || bcell.fcolor != fcell.fcolor || bcell.bcolor != fcell.bcolor) {
+			if (bcell.ch != fcell.ch || bcell.fcolor != fcell.fcolor || bcell.bcolor != fcell.bcolor 
+					|| bcell.attr != fcell.attr) {
 				__pkt_terminal_mvcurs(x, y);
-				if (fcpen != bcell.fcolor || bcpen != bcell.bcolor) {
+
+				if (fcpen != bcell.fcolor || bcpen != bcell.bcolor || attrpen != bcell.attr) {
+					fputs("\x1b[0m", stdout);
 					__pkt_terminal_set_color(bcell.fcolor, bcell.bcolor);
+					__pkt_terminal_set_attr(bcell.attr);
 					fcpen = bcell.fcolor;
 					bcpen = bcell.bcolor;
+					attrpen = bcell.attr;
 				}
 				
 				if (bcell.ch == 0 || bcell.ch == ' ') {
@@ -193,7 +196,7 @@ int __pkt_terminal_update(void)
 				front_buffer[y * col + x] = bcell;
 			}	
 			
-			__pkt_terminal_write_cell(x, y, user_default_fcolor, user_default_bcolor, ' ');
+			__pkt_terminal_write_cell(x, y, user_default_fcolor, user_default_bcolor, PKT_ATTR_NONE, ' ');
 		}
 	}
 
@@ -201,15 +204,15 @@ int __pkt_terminal_update(void)
 	return 0;
 }
 
-int __pkt_terminal_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, char c)
+int __pkt_terminal_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, char c)
 {
 	if (x < 0 || x >= col || y < 0 || y >= row)
 		return -1;
-	__pkt_terminal_write_cell(x, y, fcolor, bcolor, c);
+	__pkt_terminal_write_cell(x, y, fcolor, bcolor, attr, c);
 	return 0;
 }
 
-int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *str)
+int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *str)
 {
 	if (y < 0 || y >= row)
 		return -1;
@@ -227,14 +230,29 @@ int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcol
 		mbtowc(&wc, &str[i], bytes);
 		int width = wcwidth(wc);
 
-		__pkt_terminal_write_cell(current_x, y, fcolor, bcolor, packed_ch);
+		__pkt_terminal_write_cell(current_x, y, fcolor, bcolor, attr, packed_ch);
 		// last half of fullwidth character. set 1 in ch as a mark so thay terminal_update() knows 
 		if (width == 2 && current_x + 1 < col) {
-			__pkt_terminal_write_cell(current_x + 1, y, fcolor, bcolor, 1);
+			__pkt_terminal_write_cell(current_x + 1, y, fcolor, bcolor, attr, 1);
 		}
 
 		current_x += width;
 		i += bytes;
+	}
+
+	return 0;
+}
+
+int __pkt_terminal_check_resize(int *out_cols, int *out_rows)
+{
+	if (pending_resize_event) {
+		pending_resize_event = 0;
+		struct winsize w;
+		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != -1) {
+			*out_cols = w.ws_col;
+			*out_rows = w.ws_row;
+			return 1;
+		}
 	}
 
 	return 0;
@@ -330,7 +348,34 @@ static void __pkt_terminal_stop_altbuff(void)
 // Set font and background color. bcolor is fcolor + 10 in ANSI escape sequence.
 static void __pkt_terminal_set_color(enum pkt_color fcolor, enum pkt_color bcolor)  
 {
+	if (fcolor == PKT_COLOR_DEFAULT)
+		fcolor = user_default_fcolor;
+	if (bcolor == PKT_COLOR_DEFAULT)
+		bcolor = user_default_bcolor;
 	printf("\x1b[%d;%dm", fcolor, bcolor + 10); 
+}
+
+static void __pkt_terminal_set_attr(uint8_t attr)
+{
+	if (attr & PKT_ATTR_BOLD) {
+		fputs("\x1b[1m", stdout);
+	}
+
+	if (attr & PKT_ATTR_UNDERLINE) {
+		fputs("\x1b[4m", stdout);
+	}
+
+	if (attr & PKT_ATTR_REVERSE) {
+		fputs("\x1b[7m", stdout);
+	}
+
+	if (attr & PKT_ATTR_BLINK) {
+		fputs("\x1b[5m", stdout);
+	}
+
+	if (attr & PKT_ATTR_FASTBLINK) {
+		fputs("\x1b[6m", stdout);
+	}
 }
 
 static void __pkt_terminal_resize(int row, int col)
@@ -379,27 +424,15 @@ static void __pkt_terminal_load_config(struct pkt_config *c)
 static void __pkt_terminal_flag_sigwinch(int sig)
 {
 	(void)sig;
-	is_window_resized = 1;
-	has_resized_ever = 1;
+	pending_resize_event = 1;
 }
 
-// Bring back the terminal size to configured game size. Clear screen, then zero clear front buffer
-// so that every cells will be re-drawn in next frame.
-static void __pkt_terminal_handle_sigwinch(void)
-{
-	if (is_window_resized) {
-		is_window_resized = 0;
 
-		__pkt_terminal_resize(row, col);
-		__pkt_terminal_clear();
-		memset(front_buffer, 0, sizeof(struct pkt_cell) * col * row);
 
-	}
-}
-
-static void __pkt_terminal_write_cell(int x, int y, uint8_t fcolor, uint8_t bcolor, uint32_t ch)
+static void __pkt_terminal_write_cell(int x, int y, uint8_t fcolor, uint8_t bcolor, uint8_t attr, uint32_t ch)
 {
 	back_buffer[y * col + x].ch = ch;
 	back_buffer[y * col + x].fcolor = fcolor;
 	back_buffer[y * col + x].bcolor = bcolor;
+	back_buffer[y * col + x].attr = attr;
 }

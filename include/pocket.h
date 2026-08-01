@@ -6,12 +6,17 @@
 #define POCKET_H
 
 #include <stddef.h> // size_t
+#include <stdint.h> // uintxx_t
 
 // === Engine CORE API === 
        
-// TODO ANSI color code by 0 - 255?
-// COLOR CODES
+/**
+ * @brief Color code to specify font and background colors.
+ *
+ * @note User can use these pkt_color list, or they can use ANSI 256 color codes. 
+ */
 enum pkt_color {
+	PKT_COLOR_DEFAULT = 0,
 	PKT_COLOR_BLACK = 30, 
 	PKT_COLOR_RED = 31,
 	PKT_COLOR_GREEN = 32,
@@ -22,18 +27,29 @@ enum pkt_color {
 	PKT_COLOR_WHITE = 37,
 };
 
+// Character attributes
+// [NOTE] This is enabled by ANSI escape sequence, and some attribute is not supported depends on user's terminal.
+enum pkt_attr {
+	PKT_ATTR_NONE = 0,
+	PKT_ATTR_BOLD = (1 << 0), 
+	PKT_ATTR_UNDERLINE = (1 << 1), 
+	PKT_ATTR_REVERSE = (1 << 2),
+	PKT_ATTR_BLINK = (1 << 3),
+	PKT_ATTR_FASTBLINK = (1 << 4),
+};
+
 /** [Note] Applications created with Pocket engine does NOT allow players to resize window, because it break the
 * 	  game layouts. If the engine detected window resizing by OS, it simply bring back to the size 
 *	  which configured in this structure.
 */ 
 struct pkt_config {
-	void *user_data; // Pointer to store user data structure
+	void *user_data; // Pointer to store user data structure. Default = NULL
 	void (*on_init)(void *user_data); //func pointer for user initialization
-	int target_fps; // Target fps value that user want to achieve
-	int screen_col; // number of columns on screen
-	int screen_row; // number of rows on screen
-	enum pkt_color default_fcolor; // Game's default font color
-	enum pkt_color default_bcolor; // Game's default background color
+	int target_fps; // Target fps value that user want to achieve. Default = 60
+	int screen_col; // number of columns on screen. Default = 80
+	int screen_row; // number of rows on screen. Default = 24
+	enum pkt_color default_fcolor; // Game's default font color. Default = PKT_COLOR_WHITE
+	enum pkt_color default_bcolor; // Game's default background color. Default = PKT_COLOR_BLACK
 };
 
 /**
@@ -84,6 +100,7 @@ int pkt_cleanup(void);
 enum pkt_event_type{
 	PKT_EVENT_QUIT,
 	PKT_EVENT_KEY_PRESSED,
+	PKT_EVENT_RESIZE,
 };
 
 struct pkt_event {
@@ -92,10 +109,14 @@ struct pkt_event {
 		struct {
 			int key_code;
 		} key;
+		struct {
+			int cols;
+			int rows;
+		}resize;
 	} data;
 };
 
-enum pkt_keycode {
+enum pkt_keycode { 
 	PKT_KEY_ENTER = 10,
 	PKT_KEK_ESCAPE = 27,
 	PKT_KEY_SPACE = 32,
@@ -125,15 +146,39 @@ int pkt_poll_event(struct pkt_event *event);
 /**
  * @brief  Put a 1 byte character at specified x and y coordinates.
  *
- * @param  x x position(col)
- * @param  y y position(row)
- * @param  fcolor Font color 
- * @param  bcolor Background color 
- * @param  c character to draw
+ * @param  x X position(columns)
+ * @param  y Y position(rows)
+ * @param  c A character to put on screen.
  *
- * @return 0 on success -1 when invalid x, y, or color code passed 
+ * @return  0 on success. -1 when invalid x, y passed.
  */
-int pkt_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, char c);
+int pkt_putc(int x, int y, char c);
+
+/**
+ * @brief  Put a 1 byte character at specified x and y coordinates with colors and attributes.
+ *
+ * @param  x X position(columns)
+ * @param  y Y position(rows)
+ * @param  fcolor Font color (e.g., PKT_COLOR_RED)
+ * @param  bcolor Background color
+ * @param  attr Bitmask of character attributes. Can be a bitwise OR of "enum pkt_attr"
+ *              values (e.g., PKT_ATTR_BOLD | PKT_ATTR_UNDERLINE). Pass PKT_ATTR_NONE for nomal text.
+ * @param  c A character to put on screen
+ *
+ * @return 0 on success -1 when invalid x, y, or color code passed. 
+ */
+int pkt_putc_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, char c);
+
+/**
+ * @brief  Put a string or multi-byte character(UTF-8) at specified x and y coordinates.
+ *
+ * @param  x X position(columns)
+ * @param  y y position(rows)
+ * @param  str A string to put on screen
+ *
+ * @return 0 on success, -1 when invalid x or y passed.
+ */
+int pkt_puts(int x, int y, const char *str);
 
 /**
  * @brief  Put a string or multi byte character(UTF-8) at specified x and y coordinates.
@@ -141,26 +186,42 @@ int pkt_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, char c)
  *
  * @param  x x position(col)
  * @param  y y position(row)
- * @param  fcolor Font color  
+ * @param  fcolor Font color (e.g., PKT_COLOR_RED) 
  * @param  bcolor Background color
+ * @param  attr Bitmask of character attributes. Can be a bitwise OR of "enum pkt_attr"
+ *              values (e.g., PKT_ATTR_BOLD | PKT_ATTR_UNDERLINE). Pass PKT_ATTR_NONE for nomal text.
  * @param  str A string to put 
  *
- * @return 0 on success, -1 when invalid x, y, or color code passed.
+ * @return 0 on success, -1 when invalid parameters passed.
  */
-int pkt_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *str);
+int pkt_puts_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *str);
+
+/**
+ * @brief Print a formatted string at x and y coordinates. 
+ *
+ * @param  x X position(columns)
+ * @param  y Y position(rows)
+ * @param  fmt A formatted string to print
+ *
+ * @return 0 on success, -1 when invalid x or y passed.
+ */
+int pkt_printf(int x, int y, const char *fmt, ...);
 
 /**
  * @brief  Print a formatted string at x and y coordinates.
  *
  * @param  x x position (columns)
  * @param  y y positon (rows)
- * @param  fcolor Font color
+ * @param  fcolor Font color (e.g., PKT_COLOR_RED)
  * @param  bcolor Background color
+ * @param  attr Bitmask of character attributes. Can be a bitwise OR of "enum pkt_attr"
+ *              values (e.g., PKT_ATTR_BOLD | PKT_ATTR_UNDERLINE). Pass PKT_ATTR_NONE for nomal text.
  * @param  fmt A formatted string to print
  *
- * @return  
+ * @return 0 on success, -1 when invalid parameters passed.
  */
-int pkt_printf(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *fmt, ...);
+int pkt_printf_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *fmt, ...);
+
 // === Scene Module API ===
 
 struct pkt_scene {

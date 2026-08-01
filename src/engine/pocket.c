@@ -63,6 +63,16 @@ int pkt_ignite(void)
 			e.data.key.key_code = k;
 			__pkt_event_push(&e);
 		}
+		
+		int new_cols = 0;
+		int new_rows = 0;
+		if (__pkt_terminal_check_resize(&new_cols, &new_rows)) {
+			struct pkt_event e;
+			e.type = PKT_EVENT_RESIZE;
+			e.data.resize.cols = new_cols;
+			e.data.resize.rows = new_rows;
+			__pkt_event_push(&e);
+		}
 
 		__pkt_scene_update(dt);
 		__pkt_scene_draw();
@@ -105,17 +115,26 @@ int pkt_poll_event(struct pkt_event *event)
 	return __pkt_event_poll(event);
 }
 
-int pkt_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, char c)
+int pkt_putc(int x, int y, char c) 
 {
-	return __pkt_terminal_putc(x, y, fcolor, bcolor, c);
+	return __pkt_terminal_putc(x, y, PKT_COLOR_DEFAULT, PKT_COLOR_DEFAULT, PKT_ATTR_NONE, c);
+}
+int pkt_putc_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, char c)
+{
+	return __pkt_terminal_putc(x, y, fcolor, bcolor, attr, c);
 }
 
-int pkt_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *str)
+int pkt_puts(int x, int y, const char *str)
 {
-	return __pkt_terminal_puts(x, y, fcolor, bcolor, str);
+	return __pkt_terminal_puts(x, y, PKT_COLOR_DEFAULT, PKT_COLOR_DEFAULT, PKT_ATTR_NONE, str);
 }
 
-int pkt_printf(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const char *fmt, ...)
+int pkt_puts_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *str)
+{
+	return __pkt_terminal_puts(x, y, fcolor, bcolor, attr, str);
+}
+
+int pkt_printf(int x, int y, const char *fmt, ...)
 {
 	char buf[512] = {0};
 	va_list args;
@@ -123,7 +142,18 @@ int pkt_printf(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, const
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
-	return __pkt_terminal_puts(x, y, fcolor, bcolor, buf);
+	return __pkt_terminal_puts(x, y, PKT_COLOR_DEFAULT, PKT_COLOR_DEFAULT, PKT_ATTR_NONE, buf);
+}
+
+int pkt_printf_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *fmt, ...)
+{
+	char buf[512] = {0};
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+
+	return __pkt_terminal_puts(x, y, fcolor, bcolor, attr, buf);
 }
 
 int pkt_register_scene(int scene_id, const struct pkt_scene *scene)
