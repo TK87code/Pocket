@@ -200,6 +200,7 @@ int pkt_swap_scene(int next_scene_id);
 int pkt_get_scene(void);
 
 // === Memory Module API ===
+
 // ---------------------------------------------------------
 // 1. Arena Allocator (Linear Allocator)
 // Purpose: Dynamic allocation of variable-sized memory.
@@ -253,6 +254,55 @@ void *pkt_arena_alloc(struct pkt_arena *arena, size_t bytes);
  * @return 0 on success
  */
 int pkt_reset_arena(struct pkt_arena *arena);
+
+// ---------------------------------------------------------
+// 2. Pool Allocator (Free-List)
+// Purpose: Allocation of fixed-sized blocks.
+//          Allows individual allocation and freeing of elements.
+// ---------------------------------------------------------
+
+struct pkt_pool_node {
+	struct pkt_pool_node *next;
+};
+
+struct pkt_pool_manager {
+	unsigned char *base; 		// Pointer to the memory buffer
+	size_t block_size;		// Size of a single element
+	size_t max_elems;		// Max number of elements
+	struct pkt_pool_node *head;	// Head of the free-list
+};
+
+/**
+ * @brief  Initialize a memory pool with a pre-allocated buffer and block size.
+ * 	   This build a free-list of available blocks internally.
+ *
+ * @param  manager A pointer to the pool manager structure to initialize.
+ * @param  backing_buffer A pre-allocated memory block.
+ * @param  block_size The size of a single element (e.g., sizeof(struct chunk)).
+ * @param  max_elems Maximum number of elements the buffer can hold.
+ *
+ * @return 
+ */
+int pkt_pool_init(struct pkt_pool_manager *manager, void *backing_buffer, size_t block_size, size_t max_elems);
+
+/**
+ * @brief  Allocate a single memory block from the pool's free-list.
+ *
+ * @param  manager A pointer to the memory pool.
+ *
+ * @return A pointer to the a;;ocated block, or NULL if the pool is empty. 
+ */
+void *pkt_pool_alloc(struct pkt_pool_manager *manager);
+
+/**
+ * @brief  Free a memory block back to the pool by prepending it to the free-list.
+ *
+ * @param  manager A pointer to the memory pool.
+ * @param  ptr A pointer to the memory block to free.
+ *
+ * @return 0 on success, -1 if the pointer is invalid. 
+ */
+int pkt_pool_free(struct pkt_pool_manager *manager, void *ptr);
 
 // === Log Module API ===
 

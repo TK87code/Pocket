@@ -156,6 +156,23 @@ int pkt_reset_arena(struct pkt_arena *arena)
 	return __pkt_memory_reset(arena);
 }
 
+int pkt_pool_init(struct pkt_pool_manager *manager, void *backing_buffer, size_t block_size, size_t max_elems)
+{
+	return __pkt_memory_pool_init(manager, backing_buffer, block_size, max_elems);
+}
+
+void *pkt_pool_alloc(struct pkt_pool_manager *manager)
+{
+	return __pkt_memory_pool_alloc(manager);
+}
+
+int pkt_pool_free(struct pkt_pool_manager *manager, void *ptr)
+{
+	return __pkt_memory_pool_free(manager, ptr);
+}
+
+
+
 // === Static functions ===
 
 static int __pkt_load_config(struct pkt_config *config)
