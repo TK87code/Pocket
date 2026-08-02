@@ -38,8 +38,11 @@ void my_draw(void *user_data) {
 	pkt_puts_color(10, 10, PKT_COLOR_GREEN, PKT_COLOR_BLACK, PKT_ATTR_BLINK, "Hello, Pocket Engine!");
 	pkt_puts_color(10, 11, PKT_COLOR_YELLOW, PKT_COLOR_BLACK, PKT_ATTR_FASTBLINK, "Press Escape to quit, and start coding your own special game!!");
 	pkt_puts(10, 12, "This supports UTF-8 あｱ†");
-	if (d->is_resized) 	
-		pkt_puts(10, 13, "Resize detected!!!!");
+	if (d->is_resized) { 	
+		int col, row;
+		pkt_get_termsize(&col, &row);
+		pkt_printf(10, 13, "Resize detected!new terminal size %d : %d", col, row);
+	}
 }
 
 int main(void) {

@@ -74,7 +74,12 @@ int __pkt_terminal_init(struct pkt_config *config)
 	new_term.c_cc[VTIME] = 0;  
 	tcsetattr(STDIN_FILENO, TCSANOW, &new_term); 
 	
-	signal(SIGWINCH, __pkt_terminal_flag_sigwinch); 
+	//signal(SIGWINCH, __pkt_terminal_flag_sigwinch); 
+	struct sigaction sa;
+	sa.sa_handler = __pkt_terminal_flag_sigwinch;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+	sigaction(SIGWINCH, &sa, NULL);
 
 	__pkt_terminal_start_altbuff();
 	__pkt_terminal_hidecurs();
@@ -258,11 +263,9 @@ int __pkt_terminal_check_resize(int *out_cols, int *out_rows)
 				terminal_cols = w.ws_col;
 				terminal_rows = w.ws_row;
 
-				free(front_buffer);
-				free(back_buffer);
 				__pkt_terminal_init_buffers();
 
-				fputs("\x1b[2J", stdout); // clear screen
+				printf("\x1b[%d;%dm\x1b[2J\x1b[H", user_default_fcolor, user_default_bcolor + 10);
 				fflush(stdout);
 			}
 
@@ -404,14 +407,28 @@ static void __pkt_terminal_set_attr(uint8_t attr)
 
 static int __pkt_terminal_init_buffers(void)
 {
-	front_buffer = (struct pkt_cell *)calloc((size_t)(terminal_cols * terminal_rows), sizeof(struct pkt_cell));
+	free(front_buffer);
+	free(back_buffer);
+
+	size_t cells = (size_t)(terminal_cols * terminal_rows);
+
+	front_buffer = (struct pkt_cell *)malloc(cells * sizeof(struct pkt_cell));
 	if (!front_buffer)
 		return -1;
 
-	back_buffer = (struct pkt_cell *)calloc((size_t)(terminal_cols * terminal_rows), sizeof(struct pkt_cell));
+	back_buffer = (struct pkt_cell *)malloc(cells * sizeof(struct pkt_cell));
 	if (!back_buffer) {
 		free(front_buffer);
 		return -1;
+	}
+
+	for (size_t i = 0; i < cells; i++) {
+		front_buffer[i].ch = ' ';	
+		front_buffer[i].fcolor = user_default_fcolor;	
+		front_buffer[i].bcolor = user_default_bcolor;	
+		front_buffer[i].attr = PKT_ATTR_NONE;	
+
+		back_buffer[i] = front_buffer[i];
 	}
 
 	return 0;
