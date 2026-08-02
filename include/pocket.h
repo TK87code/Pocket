@@ -13,18 +13,18 @@
 /**
  * @brief Color code to specify font and background colors.
  *
- * @note User can use these pkt_color list, or they can use ANSI 256 color codes. 
+ * @note User can use these pkt_color list, or pass ANSI 256 color codes(0 to 255). 
  */
 enum pkt_color {
-	PKT_COLOR_DEFAULT = 0,
-	PKT_COLOR_BLACK = 30, 
-	PKT_COLOR_RED = 31,
-	PKT_COLOR_GREEN = 32,
-	PKT_COLOR_YELLOW = 33,
-	PKT_COLOR_BLUE = 34,
-	PKT_COLOR_MAGENTA = 35,
-	PKT_COLOR_CYAN = 36,
-	PKT_COLOR_WHITE = 37,
+	PKT_COLOR_DEFAULT = -1,
+	PKT_COLOR_BLACK = 0, 
+	PKT_COLOR_RED = 1,
+	PKT_COLOR_GREEN = 2,
+	PKT_COLOR_YELLOW = 3,
+	PKT_COLOR_BLUE = 4,
+	PKT_COLOR_MAGENTA = 5,
+	PKT_COLOR_CYAN = 6,
+	PKT_COLOR_WHITE = 7,
 };
 
 // Character attributes

@@ -36,12 +36,13 @@ void my_draw(void *user_data) {
 	// Draw green text at (x:10, y:10)
 	struct data *d = (struct data *)user_data;
 	pkt_puts_color(10, 10, PKT_COLOR_GREEN, PKT_COLOR_BLACK, PKT_ATTR_BLINK, "Hello, Pocket Engine!");
-	pkt_puts_color(10, 11, PKT_COLOR_YELLOW, PKT_COLOR_BLACK, PKT_ATTR_FASTBLINK, "Press Escape to quit, and start coding your own special game!!");
+	pkt_puts_color(10, 11, 94, PKT_COLOR_BLACK, PKT_ATTR_NONE, "You can pass ANSI 256 color codes to color characters.");
 	pkt_puts(10, 12, "This supports UTF-8 あｱ†");
+	pkt_puts_color(10, 13, 11, PKT_COLOR_BLACK, PKT_ATTR_FASTBLINK, "Press Escape to quit, and start coding your own special game!!");
 	if (d->is_resized) { 	
 		int col, row;
 		pkt_get_termsize(&col, &row);
-		pkt_printf(10, 13, "Resize detected! New terminal size %d : %d", col, row);
+		pkt_printf(10, 14, "Resize detected! New terminal size %d : %d", col, row);
 	}
 }
 

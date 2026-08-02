@@ -211,8 +211,10 @@ int __pkt_terminal_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcol
 	if (x < 0 || x >= terminal_cols || y < 0 || y >= terminal_rows)
 		return -1;
 
-	__pkt_terminal_write_cell(x, y, fcolor, bcolor, attr, c);
+	uint8_t fc = (fcolor == PKT_COLOR_DEFAULT) ? (uint8_t)user_default_fcolor : fcolor;
+	uint8_t bc = (bcolor == PKT_COLOR_DEFAULT) ? (uint8_t)user_default_bcolor : bcolor;
 
+	__pkt_terminal_write_cell(x, y, fc, bc, attr, c);
 	return 0;
 }
 
@@ -220,6 +222,9 @@ int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcol
 {
 	if (y < 0 || y >= terminal_rows)
 		return -1;
+
+	uint8_t fc = (fcolor == PKT_COLOR_DEFAULT) ? (uint8_t)user_default_fcolor : fcolor;
+	uint8_t bc = (bcolor == PKT_COLOR_DEFAULT) ? (uint8_t)user_default_bcolor : bcolor;
 
 	int i = 0;
 	int current_x = x;
@@ -235,16 +240,15 @@ int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcol
 		mbtowc(&wc, &str[i], bytes);
 		int width = wcwidth(wc);
 
-		__pkt_terminal_write_cell(current_x, y, fcolor, bcolor, attr, packed_ch);
+		__pkt_terminal_write_cell(current_x, y, fc, bc, attr, packed_ch);
 		// last half of fullwidth character. set 1 in ch as a mark so thay terminal_update() knows 
 		if (width == 2 && current_x + 1 < terminal_cols) {
-			__pkt_terminal_write_cell(current_x + 1, y, fcolor, bcolor, attr, 1);
+			__pkt_terminal_write_cell(current_x + 1, y, fc, bc, attr, 1);
 		}
 
 		current_x += width;
 		i += bytes;
 	}
-
 	return 0;
 }
 
@@ -272,17 +276,15 @@ int __pkt_terminal_check_resize(int *out_cols, int *out_rows)
 			return 1;
 		}
 	}
-
 	return 0;
 }
 
 int __pkt_terminal_get_termsize(int *out_cols, int *out_rows)
 {
-	if (out_cols != NULL)
+	if (out_cols)
 		*out_cols = terminal_cols;
-	if (out_rows != NULL)
+	if (out_rows)
 		*out_rows = terminal_rows;
-
 	return 0;
 }
 
@@ -387,11 +389,7 @@ static void __pkt_terminal_stop_altbuff(void)
 // Set font and background color. bcolor is fcolor + 10 in ANSI escape sequence.
 static void __pkt_terminal_set_color(enum pkt_color fcolor, enum pkt_color bcolor)  
 {
-	if (fcolor == PKT_COLOR_DEFAULT)
-		fcolor = user_default_fcolor;
-	if (bcolor == PKT_COLOR_DEFAULT)
-		bcolor = user_default_bcolor;
-	printf("\x1b[%d;%dm", fcolor, bcolor + 10); 
+	printf("\x1b[38;5;%d;48;5;%dm", (uint8_t)fcolor, (uint8_t)bcolor); 
 }
 
 static void __pkt_terminal_set_attr(uint8_t attr)
