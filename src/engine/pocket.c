@@ -24,8 +24,6 @@ struct pkt_config pkt_get_default_config(void)
 {
 	struct pkt_config c = {0};
 	c.target_fps = PKT_DEFAULT_TARGET_FPS;
-	c.screen_col = PKT_DEFAULT_SCOL;
-	c.screen_row = PKT_DEFAULT_SROW;
 	c.default_fcolor = PKT_COLOR_WHITE;
 	c.default_bcolor = PKT_COLOR_BLACK;
 	c.user_data = NULL;
@@ -113,6 +111,11 @@ void *pkt_scratch_alloc(size_t bytes)
 int pkt_poll_event(struct pkt_event *event)
 {
 	return __pkt_event_poll(event);
+}
+
+int pkt_get_termsize(int *out_cols, int *out_rows)
+{
+	return __pkt_terminal_get_termsize(out_cols, out_rows);
 }
 
 int pkt_putc(int x, int y, char c) 

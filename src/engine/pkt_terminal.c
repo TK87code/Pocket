@@ -20,7 +20,6 @@ struct pkt_cell { // 7 bytes
 	uint8_t attr;
 };
 
-static void __pkt_terminal_clear(void);
 static void __pkt_terminal_hidecurs(void);
 static void __pkt_terminal_showcurs(void);
 static void __pkt_terminal_mvcurs(int x, int y);
@@ -30,7 +29,6 @@ static int __pkt_terminal_init_buffers(void);
 static void __pkt_terminal_start_altbuff(void);
 static void __pkt_terminal_stop_altbuff(void);
 static void __pkt_terminal_load_config(struct pkt_config *config);
-static void __pkt_terminal_resize(int row, int col);
 static void __pkt_terminal_flag_sigwinch(int sig);
 static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char);
 static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size);
@@ -41,41 +39,45 @@ static struct termios original_term;
 static struct pkt_cell *front_buffer;
 static struct pkt_cell *back_buffer;
 
-static int original_col = 0;
-static int original_row = 0;
 static volatile sig_atomic_t pending_resize_event = 0;
 
-static int col = PKT_DEFAULT_SCOL;
-static int row = PKT_DEFAULT_SROW;
+// Global variables to store game player's current terminal sizes
+static int terminal_rows = 0;
+static int terminal_cols = 0;
+
 static enum pkt_color user_default_fcolor = PKT_COLOR_WHITE;
 static enum pkt_color user_default_bcolor = PKT_COLOR_BLACK;
 
+/*
+ * Load config to set data needed. Get terminal size.
+ * Store terminal attributes to restore later, and 
+ * modify some attributes and set it to the terminal immediately.
+ * Register a callback when user resize the terminal so that engine can issue the event.
+ * Start alternate buffer and hide cursor. Then initialize two screen buffers.
+ */
 int __pkt_terminal_init(struct pkt_config *config) 
 {
 	__pkt_terminal_load_config(config);	
 
 	setlocale(LC_ALL, "");
 
-	// Get original window size to restore later
 	struct winsize w;
 	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != -1) {
-		original_row = w.ws_row;
-		original_col = w.ws_col;
+		terminal_rows = w.ws_row;
+		terminal_cols = w.ws_col;
 	}
 
-	tcgetattr(STDIN_FILENO, &original_term); // store user terminal attribute to restore later.
+	tcgetattr(STDIN_FILENO, &original_term); 
 	struct termios new_term = original_term;
-	new_term.c_lflag &= ~(ECHO | ICANON); // Disable echo and ICANON(waiting untill user hit enter)
-	new_term.c_cc[VMIN] = 0; // wait at least 0 characters
-	new_term.c_cc[VTIME] = 0; // get realtime input 
-	tcsetattr(STDIN_FILENO, TCSANOW, &new_term); // Set terminal attribute immediately(TCSANOW)
+	new_term.c_lflag &= ~(ECHO | ICANON); 
+	new_term.c_cc[VMIN] = 0; 
+	new_term.c_cc[VTIME] = 0;  
+	tcsetattr(STDIN_FILENO, TCSANOW, &new_term); 
 	
-	signal(SIGWINCH, __pkt_terminal_flag_sigwinch); // Register window resize(by game player) signal handler to OS
+	signal(SIGWINCH, __pkt_terminal_flag_sigwinch); 
 
 	__pkt_terminal_start_altbuff();
 	__pkt_terminal_hidecurs();
-	__pkt_terminal_clear();
-	__pkt_terminal_resize(row, col);
 	fflush(stdout);
 	
 	if (__pkt_terminal_init_buffers() < 0)
@@ -84,12 +86,13 @@ int __pkt_terminal_init(struct pkt_config *config)
 	return 0;
 }
 
-// Recover terminal attribute before app stareted. 
-// Stop alternative buffer, show cursor, restore the original terminal size and color
-// If window resized ever, place cursor all the way down so that it correctly restore the looks.
+/* 
+ * Recover terminal attribute before app stareted. 
+ * Stop alternative buffer, show cursor, restore the original terminal size and color
+ * If window resized ever, place cursor all the way down so that it correctly restore the looks.
+ */
 int __pkt_terminal_restore(void) 
 {
-	__pkt_terminal_resize(original_row, original_col);
 	__pkt_terminal_stop_altbuff();
 	__pkt_terminal_showcurs();
 	fputs("\x1b[0m", stdout);
@@ -138,9 +141,8 @@ int __pkt_terminal_read_input(void)
 			return PKT_KEY_ESCAPE;
 		}	
 		
-		if (c == '\r' || c == '\n') {
+		if (c == '\r' || c == '\n') 
 			return PKT_KEY_ENTER;
-		}
 
 		return c;  
 	}
@@ -158,14 +160,14 @@ int __pkt_terminal_update(void)
 	int bcpen = -1;
 	int attrpen = -1;
 
-	for (int y = 0; y < row; y++) {
-		for (int x = 0; x < col; x++){
-			struct pkt_cell bcell = back_buffer[y * col + x];
-			struct pkt_cell fcell = front_buffer[y * col + x];
+	for (int y = 0; y < terminal_rows; y++) {
+		for (int x = 0; x < terminal_cols; x++){
+			struct pkt_cell bcell = back_buffer[y * terminal_cols + x];
+			struct pkt_cell fcell = front_buffer[y * terminal_cols + x];
 			
 			// if ch is 1, it means its fullwidth character's last half
 			if (bcell.ch == 1) {
-				front_buffer[y * col + x] = bcell;
+				front_buffer[y * terminal_cols + x] = bcell;
 
 				__pkt_terminal_write_cell(x, y, user_default_fcolor, user_default_bcolor, PKT_ATTR_NONE, ' ');
 				continue;
@@ -193,7 +195,7 @@ int __pkt_terminal_update(void)
 					__pkt_terminal_unpack_utf8(buf, bcell.ch, sizeof(buf));
 					fputs(buf, stdout);
 				}
-				front_buffer[y * col + x] = bcell;
+				front_buffer[y * terminal_cols + x] = bcell;
 			}	
 			
 			__pkt_terminal_write_cell(x, y, user_default_fcolor, user_default_bcolor, PKT_ATTR_NONE, ' ');
@@ -206,21 +208,24 @@ int __pkt_terminal_update(void)
 
 int __pkt_terminal_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, char c)
 {
-	if (x < 0 || x >= col || y < 0 || y >= row)
+	if (x < 0 || x >= terminal_cols || y < 0 || y >= terminal_rows)
 		return -1;
+
 	__pkt_terminal_write_cell(x, y, fcolor, bcolor, attr, c);
+
 	return 0;
 }
 
 int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *str)
 {
-	if (y < 0 || y >= row)
+	if (y < 0 || y >= terminal_rows)
 		return -1;
+
 	int i = 0;
 	int current_x = x;
 
 	while (str[i] != '\0') {
-		if (current_x < 0 || current_x >= col)
+		if (current_x < 0 || current_x >= terminal_cols)
 			break;
 
 		uint32_t packed_ch = 0;
@@ -232,7 +237,7 @@ int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcol
 
 		__pkt_terminal_write_cell(current_x, y, fcolor, bcolor, attr, packed_ch);
 		// last half of fullwidth character. set 1 in ch as a mark so thay terminal_update() knows 
-		if (width == 2 && current_x + 1 < col) {
+		if (width == 2 && current_x + 1 < terminal_cols) {
 			__pkt_terminal_write_cell(current_x + 1, y, fcolor, bcolor, attr, 1);
 		}
 
@@ -249,8 +254,20 @@ int __pkt_terminal_check_resize(int *out_cols, int *out_rows)
 		pending_resize_event = 0;
 		struct winsize w;
 		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != -1) {
-			*out_cols = w.ws_col;
-			*out_rows = w.ws_row;
+			if (w.ws_col != terminal_cols || w.ws_row != terminal_rows) {
+				terminal_cols = w.ws_col;
+				terminal_rows = w.ws_row;
+
+				free(front_buffer);
+				free(back_buffer);
+				__pkt_terminal_init_buffers();
+
+				fputs("\x1b[2J", stdout); // clear screen
+				fflush(stdout);
+			}
+
+			*out_cols = terminal_cols;
+			*out_rows = terminal_rows;
 			return 1;
 		}
 	}
@@ -258,9 +275,21 @@ int __pkt_terminal_check_resize(int *out_cols, int *out_rows)
 	return 0;
 }
 
-// Read bytes of UTF-8, pack the character in 32bits box(out_char)
-// This returns the bytes of the character read
-// [REF] https://ja.wikipedia.org/wiki/UTF-8
+int __pkt_terminal_get_termsize(int *out_cols, int *out_rows)
+{
+	if (out_cols != NULL)
+		*out_cols = terminal_cols;
+	if (out_rows != NULL)
+		*out_rows = terminal_rows;
+
+	return 0;
+}
+
+/*
+ * Read bytes of UTF-8, pack the character in 32bits box(out_char)
+ * This returns the bytes of the character read
+ * [REF] https://ja.wikipedia.org/wiki/UTF-8
+ */
 static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char)
 {
 	unsigned char c1 = (unsigned char)str[0];
@@ -314,19 +343,14 @@ static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size)
 	return 0;
 }
 
-static void __pkt_terminal_clear(void) 
-{
-	fputs("\x1b[2J", stdout); // ANSI Escape sequence to clear screen 
-}
-
 static void __pkt_terminal_hidecurs(void) 
 {
-	fputs("\x1b[?25l", stdout); // ANSI escape sequence to hide cursor
+	fputs("\x1b[?25l", stdout); 
 }
 
 static void __pkt_terminal_showcurs(void) 
 {
-	fputs("\x1b[?25h", stdout); // ANSI escape sequence to show cursor
+	fputs("\x1b[?25h", stdout); 
 }
 
 // Move cursor using ANSI escape sequence (ANSI coordinates starts with 1)
@@ -378,17 +402,13 @@ static void __pkt_terminal_set_attr(uint8_t attr)
 	}
 }
 
-static void __pkt_terminal_resize(int row, int col)
-{
-	printf("\x1b[8;%d;%dt", row, col);
-}
-
 static int __pkt_terminal_init_buffers(void)
 {
-	front_buffer = (struct pkt_cell *)calloc((size_t)(col * row), sizeof(struct pkt_cell));
+	front_buffer = (struct pkt_cell *)calloc((size_t)(terminal_cols * terminal_rows), sizeof(struct pkt_cell));
 	if (!front_buffer)
 		return -1;
-	back_buffer = (struct pkt_cell *)calloc((size_t)(col * row), sizeof(struct pkt_cell));
+
+	back_buffer = (struct pkt_cell *)calloc((size_t)(terminal_cols * terminal_rows), sizeof(struct pkt_cell));
 	if (!back_buffer) {
 		free(front_buffer);
 		return -1;
@@ -399,16 +419,6 @@ static int __pkt_terminal_init_buffers(void)
 
 static void __pkt_terminal_load_config(struct pkt_config *c)
 {
-	if (c->screen_col < 1 || c->screen_col > 500)
-		col = PKT_DEFAULT_SCOL;
-	else
-		col = c->screen_col;
-
-	if (c->screen_row < 1 || c->screen_row > 500)
-		row = PKT_DEFAULT_SROW;
-	else
-		row = c->screen_row;
-
 	if (c->default_fcolor < 30 || c->default_fcolor > 37)
 		user_default_fcolor = PKT_COLOR_WHITE;
 	else
@@ -427,12 +437,10 @@ static void __pkt_terminal_flag_sigwinch(int sig)
 	pending_resize_event = 1;
 }
 
-
-
 static void __pkt_terminal_write_cell(int x, int y, uint8_t fcolor, uint8_t bcolor, uint8_t attr, uint32_t ch)
 {
-	back_buffer[y * col + x].ch = ch;
-	back_buffer[y * col + x].fcolor = fcolor;
-	back_buffer[y * col + x].bcolor = bcolor;
-	back_buffer[y * col + x].attr = attr;
+	back_buffer[y * terminal_cols + x].ch = ch;
+	back_buffer[y * terminal_cols + x].fcolor = fcolor;
+	back_buffer[y * terminal_cols + x].bcolor = bcolor;
+	back_buffer[y * terminal_cols + x].attr = attr;
 }

@@ -38,18 +38,12 @@ enum pkt_attr {
 	PKT_ATTR_FASTBLINK = (1 << 4),
 };
 
-/** [Note] Applications created with Pocket engine does NOT allow players to resize window, because it break the
-* 	  game layouts. If the engine detected window resizing by OS, it simply bring back to the size 
-*	  which configured in this structure.
-*/ 
 struct pkt_config {
-	void *user_data; // Pointer to store user data structure. Default = NULL
-	void (*on_init)(void *user_data); //func pointer for user initialization
-	int target_fps; // Target fps value that user want to achieve. Default = 60
-	int screen_col; // number of columns on screen. Default = 80
-	int screen_row; // number of rows on screen. Default = 24
-	enum pkt_color default_fcolor; // Game's default font color. Default = PKT_COLOR_WHITE
-	enum pkt_color default_bcolor; // Game's default background color. Default = PKT_COLOR_BLACK
+	void *user_data; 			// Pointer to store user data structure. Default = NULL
+	void (*on_init)(void *user_data); 	//func pointer for user initialization. This must be set.
+	int target_fps; 			// Target fps value that user want to achieve. Default = 60
+	enum pkt_color default_fcolor; 		// Game's default font color. Default = PKT_COLOR_WHITE
+	enum pkt_color default_bcolor; 		// Game's default background color. Default = PKT_COLOR_BLACK
 };
 
 /**
@@ -142,6 +136,16 @@ enum pkt_keycode {
 int pkt_poll_event(struct pkt_event *event);
 
 // === Terminal Module API === 
+
+/**
+ * @brief Get current terminal size and store it to the pointer passed as parameters. 
+ *
+ * @param  out_cols A pointer to store current terminal colmmuns.
+ * @param  out_rows A pointer to store current terminal rows.
+ *
+ * @return 0 on success. 
+ */
+int pkt_get_termsize(int *out_cols, int *out_rows);
 
 /**
  * @brief  Put a 1 byte character at specified x and y coordinates.
