@@ -41,7 +41,7 @@ void my_draw(void *user_data) {
 	if (d->is_resized) { 	
 		int col, row;
 		pkt_get_termsize(&col, &row);
-		pkt_printf(10, 13, "Resize detected!new terminal size %d : %d", col, row);
+		pkt_printf(10, 13, "Resize detected! New terminal size %d : %d", col, row);
 	}
 }
 
