@@ -43,7 +43,7 @@ int pkt_win_puts_color(const struct pkt_window *win, int x, int y,
 	if (x < 0 || x >= win->width || y < 0 || y >= win->height)
 		return -1;
 
-	const char *s = __pkt_win_clipstr(win, x, y, str);
+	const char *s = __pkt_win_clipstr(win, x, str);
 
 	return pkt_puts_color(win->x + x, win->y + y, fcolor, bcolor, attr, s);
 }
@@ -59,7 +59,7 @@ int pkt_win_printf(const struct pkt_window *win, int x, int y, const char *fmt, 
 	vsnprintf(buf, sizeof(buf), fmt, v);
 	va_end;
 	
-	const char *s = __pkt_win_clipstr(win, x, y, buf);
+	const char *s = __pkt_win_clipstr(win, x, buf);
 
 	return pkt_puts_color(win->x + x, win->y + y, PKT_COLOR_DEFAULT, PKT_COLOR_DEFAULT, PKT_ATTR_NONE, s);
 }
@@ -76,7 +76,7 @@ int pkt_win_printf_color(const struct pkt_window *win, int x, int y,
 	vsnprintf(buf, sizeof(buf), fmt, v);
 	va_end(v);
 	
-	const char *s = __pkt_win_clipstr(win, x, y, buf);
+	const char *s = __pkt_win_clipstr(win, x, buf);
 
 	return pkt_puts_color(win->x + x, win->y + y, fcolor, bcolor, attr, s);
 }
@@ -128,7 +128,7 @@ static const char *__pkt_win_clipstr(const struct pkt_window *win, int x, const 
 		
 		int w = wcwidth(wc);
 		if (w < 0)
-			w = 0;r
+			w = 0;
 
 		if (current_x + w > win->width)
 			break;
