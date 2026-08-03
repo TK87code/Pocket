@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE 500 	// X/Open System Interfaces Extension (XSI) Issue 5
+#include <stdio.h>		// vnsprintf
 #include <stdlib.h>		// mbtowc 
 #include <wchar.h>		// wchar_t, wcwidth
 #include <string.h>		// memcpy
@@ -6,7 +7,7 @@
 #include "pocket.h"
 #include "ext/pkt_win.h"
 
-static int __pkt_win_clipstr(const struct pkt_window *win, int x, const char *str);
+static const char * __pkt_win_clipstr(const struct pkt_window *win, int x, const char *str);
 
 struct pkt_window pkt_win_create(int x, int y, int width, int height)
 {
@@ -57,7 +58,7 @@ int pkt_win_printf(const struct pkt_window *win, int x, int y, const char *fmt, 
 	va_list v;
 	va_start(v, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, v);
-	va_end;
+	va_end(v);
 	
 	const char *s = __pkt_win_clipstr(win, x, buf);
 
@@ -83,7 +84,7 @@ int pkt_win_printf_color(const struct pkt_window *win, int x, int y,
 
 int pkt_win_box(struct pkt_window *win)
 {
-	return pkt_win_box_color(win, PKT_COLOR_DEFAULT, PKT_COLOR_DEFAULT, PKT_ATTR_DEFAULT);
+	return pkt_win_box_color(win, PKT_COLOR_DEFAULT, PKT_COLOR_DEFAULT, PKT_ATTR_NONE);
 }
 
 int pkt_win_box_color(struct pkt_window *win, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr)
