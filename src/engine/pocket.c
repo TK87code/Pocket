@@ -122,7 +122,7 @@ int pkt_putc(int x, int y, char c)
 {
 	return __pkt_terminal_putc(x, y, PKT_COLOR_DEFAULT, PKT_COLOR_DEFAULT, PKT_ATTR_NONE, c);
 }
-int pkt_putc_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, char c)
+int pkt_putc_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr, char c)
 {
 	return __pkt_terminal_putc(x, y, fcolor, bcolor, attr, c);
 }
@@ -132,7 +132,7 @@ int pkt_puts(int x, int y, const char *str)
 	return __pkt_terminal_puts(x, y, PKT_COLOR_DEFAULT, PKT_COLOR_DEFAULT, PKT_ATTR_NONE, str);
 }
 
-int pkt_puts_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *str)
+int pkt_puts_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr, const char *str)
 {
 	return __pkt_terminal_puts(x, y, fcolor, bcolor, attr, str);
 }
@@ -148,7 +148,7 @@ int pkt_printf(int x, int y, const char *fmt, ...)
 	return __pkt_terminal_puts(x, y, PKT_COLOR_DEFAULT, PKT_COLOR_DEFAULT, PKT_ATTR_NONE, buf);
 }
 
-int pkt_printf_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *fmt, ...)
+int pkt_printf_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr, const char *fmt, ...)
 {
 	char buf[512] = {0};
 	va_list args;

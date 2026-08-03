@@ -171,7 +171,7 @@ int pkt_putc(int x, int y, char c);
  *
  * @return 0 on success -1 when invalid x, y, or color code passed. 
  */
-int pkt_putc_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, char c);
+int pkt_putc_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr, char c);
 
 /**
  * @brief  Put a string or multi-byte character(UTF-8) at specified x and y coordinates.
@@ -185,8 +185,8 @@ int pkt_putc_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, u
 int pkt_puts(int x, int y, const char *str);
 
 /**
- * @brief  Put a string or multi byte character(UTF-8) at specified x and y coordinates.
- * This function is much slower than pkt_putc().
+ * @brief  Put a string or multi byte character(UTF-8) at specified x and y coordinates
+ * 	   with color and attributes.
  *
  * @param  x x position(col)
  * @param  y y position(row)
@@ -198,7 +198,7 @@ int pkt_puts(int x, int y, const char *str);
  *
  * @return 0 on success, -1 when invalid parameters passed.
  */
-int pkt_puts_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *str);
+int pkt_puts_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr, const char *str);
 
 /**
  * @brief Print a formatted string at x and y coordinates. 
@@ -212,11 +212,11 @@ int pkt_puts_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, u
 int pkt_printf(int x, int y, const char *fmt, ...);
 
 /**
- * @brief  Print a formatted string at x and y coordinates.
+ * @brief  Print a formatted string at x and y coordinates with color and attributes.
  *
  * @param  x x position (columns)
  * @param  y y positon (rows)
- * @param  fcolor Font color (e.g., PKT_COLOR_RED)
+ * @param  fcolor Font color (e.g., PKT_COLOR_RED). You also can pass ANSI 256 color code here.
  * @param  bcolor Background color
  * @param  attr Bitmask of character attributes. Can be a bitwise OR of "enum pkt_attr"
  *              values (e.g., PKT_ATTR_BOLD | PKT_ATTR_UNDERLINE). Pass PKT_ATTR_NONE for nomal text.
@@ -224,7 +224,7 @@ int pkt_printf(int x, int y, const char *fmt, ...);
  *
  * @return 0 on success, -1 when invalid parameters passed.
  */
-int pkt_printf_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *fmt, ...);
+int pkt_printf_color(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr, const char *fmt, ...);
 
 // === Scene Module API ===
 

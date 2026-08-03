@@ -1,14 +1,14 @@
-#define _XOPEN_SOURCE 500 // X/Open System Interfaces Extension (XSI) Issue 5
-#include <stdio.h>
-#include <termios.h>
-#include <unistd.h>	//STDIN_FILENO 
-#include <stdlib.h>     //calloc, free, mbtowc
-#include <sys/ioctl.h>      // ioctl, TIOCGWINSZ
-#include <signal.h>	// sig_atomic_t
-#include <stdint.h> 
-#include <stdarg.h> // va_list, va_start, vfprintf, va_end
-#include <locale.h>
-#include <wchar.h>
+#define _XOPEN_SOURCE 500 	// X/Open System Interfaces Extension (XSI) Issue 5
+#include <stdio.h>		// puts, putc(
+#include <termios.h>		// tcgetattr, struct terminos
+#include <unistd.h>		// STDIN_FILENO 
+#include <stdlib.h>     	// calloc, free, mbtowc
+#include <sys/ioctl.h>      	// ioctl, TIOCGWINSZ
+#include <signal.h>		// sig_atomic_t, struct sigaction
+#include <stdint.h>		// uintxx_t
+#include <stdarg.h> 		// va_list, va_start, vfprintf, va_end
+#include <locale.h>		// setlocale
+#include <wchar.h>		// mbtowc, wchar_t
 #include "pocket.h"
 #include "pkt_terminal_internal.h"
 
@@ -23,7 +23,7 @@ static void __pkt_terminal_hidecurs(void);
 static void __pkt_terminal_showcurs(void);
 static void __pkt_terminal_mvcurs(int x, int y);
 static void __pkt_terminal_set_color(enum pkt_color fcolor, enum pkt_color bcolor);
-static void __pkt_terminal_set_attr(uint8_t attr);
+static void __pkt_terminal_set_attr(unsigned int attr);
 static void __pkt_terminal_clear_attr(void);
 static int __pkt_terminal_init_buffers(void);
 static void __pkt_terminal_start_altbuff(void);
@@ -33,7 +33,7 @@ static void __pkt_terminal_flag_sigwinch(int sig);
 static int __pkt_terminal_set_termsize(int *out_cols, int *out_rows);
 static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char);
 static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size);
-static void __pkt_terminal_write_cell(int x, int y, uint8_t fcolor, uint8_t bcolor, uint8_t attr, uint32_t ch);
+static void __pkt_terminal_write_cell(int x, int y, unsigned int fcolor, unsigned int bcolor, unsigned int attr, uint32_t ch);
 
 static struct termios original_term;
 
@@ -206,25 +206,25 @@ int __pkt_terminal_update(void)
 	return 0;
 }
 
-int __pkt_terminal_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, char c)
+int __pkt_terminal_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr, char c)
 {
 	if (x < 0 || x >= terminal_cols || y < 0 || y >= terminal_rows)
 		return -1;
 
-	uint8_t fc = (fcolor == PKT_COLOR_DEFAULT) ? (uint8_t)user_default_fcolor : fcolor;
-	uint8_t bc = (bcolor == PKT_COLOR_DEFAULT) ? (uint8_t)user_default_bcolor : bcolor;
+	unsigned int fc = (fcolor == PKT_COLOR_DEFAULT) ? (unsigned int)user_default_fcolor : (unsigned int)fcolor;
+	unsigned int bc = (bcolor == PKT_COLOR_DEFAULT) ? (unsigned int)user_default_bcolor : (unsigned int)bcolor;
 
 	__pkt_terminal_write_cell(x, y, fc, bc, attr, c);
 	return 0;
 }
 
-int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, uint8_t attr, const char *str)
+int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr, const char *str)
 {
 	if (y < 0 || y >= terminal_rows)
 		return -1;
 
-	uint8_t fc = (fcolor == PKT_COLOR_DEFAULT) ? (uint8_t)user_default_fcolor : fcolor;
-	uint8_t bc = (bcolor == PKT_COLOR_DEFAULT) ? (uint8_t)user_default_bcolor : bcolor;
+	unsigned int fc = (fcolor == PKT_COLOR_DEFAULT) ? (unsigned int)user_default_fcolor : (unsigned int)fcolor;
+	unsigned int bc = (bcolor == PKT_COLOR_DEFAULT) ? (unsigned int)user_default_bcolor : (unsigned int)bcolor;
 
 	int i = 0;
 	int current_x = x;
@@ -392,7 +392,7 @@ static void __pkt_terminal_set_color(enum pkt_color fcolor, enum pkt_color bcolo
 	printf("\x1b[38;5;%d;48;5;%dm", (uint8_t)fcolor, (uint8_t)bcolor); 
 }
 
-static void __pkt_terminal_set_attr(uint8_t attr)
+static void __pkt_terminal_set_attr(unsigned int attr)
 {
 	if (attr & PKT_ATTR_BOLD) {
 		fputs("\x1b[1m", stdout);
@@ -460,10 +460,10 @@ static void __pkt_terminal_flag_sigwinch(int sig)
 	pending_resize_event = 1;
 }
 
-static void __pkt_terminal_write_cell(int x, int y, uint8_t fcolor, uint8_t bcolor, uint8_t attr, uint32_t ch)
+static void __pkt_terminal_write_cell(int x, int y, unsigned int fcolor, unsigned int bcolor, unsigned int attr, uint32_t ch)
 {
 	back_buffer[y * terminal_cols + x].ch = ch;
-	back_buffer[y * terminal_cols + x].fcolor = fcolor;
-	back_buffer[y * terminal_cols + x].bcolor = bcolor;
-	back_buffer[y * terminal_cols + x].attr = attr;
+	back_buffer[y * terminal_cols + x].fcolor = (uint8_t)fcolor;
+	back_buffer[y * terminal_cols + x].bcolor = (uint8_t)bcolor;
+	back_buffer[y * terminal_cols + x].attr = (uint8_t)attr;
 }
