@@ -28,6 +28,8 @@ struct pkt_config pkt_get_default_config(void)
 	c.default_bcolor = PKT_COLOR_BLACK;
 	c.user_data = NULL;
 	c.on_init = NULL;
+	c.game_cols = 0;
+	c.game_rows = 0;
 
 	return c;
 }

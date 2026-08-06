@@ -39,11 +39,17 @@ enum pkt_attr {
 };
 
 struct pkt_config {
-	void *user_data; 			// Pointer to store user data structure. Default-> NULL
-	void (*on_init)(void *user_data); 	//func pointer for user initialization. This must be set.
-	int target_fps; 			// Target fps value that user want to achieve. Default-> 60
-	enum pkt_color default_fcolor; 		// Game's default colors. Default-> fcolor = white : bcolor = black
-	enum pkt_color default_bcolor; 		// writing functions without color, like pkt_putc() uses these colors 
+	void *user_data; 		 // Pointer to store user data structure. Default-> NULL
+
+	void (*on_init)(void *user_data);//func pointer for user initialization. This must be set.
+
+	int target_fps; 		 // Target fps value that user want to achieve. Default-> 60
+
+	enum pkt_color default_fcolor; 	 // Game's default colors. Default-> fcolor = white : bcolor = black
+	enum pkt_color default_bcolor; 	 //  writing functions without color, like pkt_putc() uses these colors 
+
+	int game_cols;			 // Game's logical size. If it's set to 0(default), game logical size is 
+	int game_rows;			 // player's terminal size itself. 
 };
 
 /**

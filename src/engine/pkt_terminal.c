@@ -12,17 +12,20 @@
 #include "pocket.h"
 #include "pkt_terminal_internal.h"
 
-struct pkt_cell { // 7 bytes
+#define PKT_CELL_FLAG_ORIGINAL_COLOR 1
+
+struct pkt_cell { // 8 bytes
 	uint32_t ch;
 	uint8_t fcolor;
 	uint8_t bcolor;
 	uint8_t attr;
+	uint8_t flags;
 };
 
 static void __pkt_terminal_hidecurs(void);
 static void __pkt_terminal_showcurs(void);
 static void __pkt_terminal_mvcurs(int x, int y);
-static void __pkt_terminal_set_color(enum pkt_color fcolor, enum pkt_color bcolor);
+static void __pkt_terminal_set_color(int fcolor, int bcolor);
 static void __pkt_terminal_set_attr(unsigned int attr);
 static void __pkt_terminal_clear_attr(void);
 static int __pkt_terminal_init_buffers(void);
@@ -33,7 +36,8 @@ static void __pkt_terminal_flag_sigwinch(int sig);
 static int __pkt_terminal_set_termsize(int *out_cols, int *out_rows);
 static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char);
 static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size);
-static void __pkt_terminal_write_cell(int x, int y, unsigned int fcolor, unsigned int bcolor, unsigned int attr, uint32_t ch);
+static void __pkt_terminal_write_cell(int x, int y, unsigned int fcolor, unsigned int bcolor, unsigned int attr, 
+		unsigned int flag, uint32_t ch);
 
 static struct termios original_term;
 
@@ -45,6 +49,9 @@ static volatile sig_atomic_t pending_resize_event = 0;
 // Global variables to store game player's current terminal sizes
 static int terminal_rows = 0;
 static int terminal_cols = 0;
+
+static int game_rows = 0;
+static int game_cols = 0;
 
 static enum pkt_color user_default_fcolor = PKT_COLOR_WHITE;
 static enum pkt_color user_default_bcolor = PKT_COLOR_BLACK;
@@ -165,24 +172,33 @@ int __pkt_terminal_update(void)
 		for (int x = 0; x < terminal_cols; x++){
 			struct pkt_cell bcell = back_buffer[y * terminal_cols + x];
 			struct pkt_cell fcell = front_buffer[y * terminal_cols + x];
+
+			int is_logical = (game_cols <= 0 && game_rows <= 0) || (x < game_cols && y < game_rows);
+			unsigned int reset_fc = is_logical ? (unsigned int)user_default_fcolor : 0;
+			unsigned int reset_bc = is_logical ? (unsigned int)user_default_bcolor : 0;
+			unsigned int reset_flag = is_logical ? 0 : PKT_CELL_FLAG_ORIGINAL_COLOR;
 			
 			// if ch is 1, it means its fullwidth character's last half
 			if (bcell.ch == 1) {
 				front_buffer[y * terminal_cols + x] = bcell;
-				__pkt_terminal_write_cell(x, y, user_default_fcolor, user_default_bcolor, PKT_ATTR_NONE, ' ');
+				__pkt_terminal_write_cell(x, y, reset_fc, reset_bc, 
+						PKT_ATTR_NONE, reset_flag, ' ');
 				continue;
 			}
 
 			if (bcell.ch != fcell.ch || bcell.fcolor != fcell.fcolor || bcell.bcolor != fcell.bcolor 
-					|| bcell.attr != fcell.attr) {
+					|| bcell.attr != fcell.attr || bcell.flags != fcell.flags) {
 				__pkt_terminal_mvcurs(x, y);
 
-				if (fcpen != bcell.fcolor || bcpen != bcell.bcolor || attrpen != bcell.attr) {
+				int target_fc = (bcell.flags & PKT_CELL_FLAG_ORIGINAL_COLOR) ? -2 : bcell.fcolor; 
+				int target_bc = (bcell.flags & PKT_CELL_FLAG_ORIGINAL_COLOR) ? -2 : bcell.bcolor; 
+
+				if (fcpen != target_fc || bcpen != target_bc || attrpen != bcell.attr) {
 					__pkt_terminal_clear_attr();
-					__pkt_terminal_set_color(bcell.fcolor, bcell.bcolor);
+					__pkt_terminal_set_color(target_fc, target_bc);
 					__pkt_terminal_set_attr(bcell.attr);
-					fcpen = bcell.fcolor;
-					bcpen = bcell.bcolor;
+					fcpen = target_fc;
+					bcpen = target_bc;
 					attrpen = bcell.attr;
 				}
 				
@@ -198,7 +214,7 @@ int __pkt_terminal_update(void)
 				front_buffer[y * terminal_cols + x] = bcell;
 			}	
 			
-			__pkt_terminal_write_cell(x, y, user_default_fcolor, user_default_bcolor, PKT_ATTR_NONE, ' ');
+			__pkt_terminal_write_cell(x, y, reset_fc, reset_bc, PKT_ATTR_NONE, reset_flag,' ');
 		}
 	}
 
@@ -208,19 +224,25 @@ int __pkt_terminal_update(void)
 
 int __pkt_terminal_putc(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr, char c)
 {
-	if (x < 0 || x >= terminal_cols || y < 0 || y >= terminal_rows)
+	int max_cols = (game_cols > 0 && game_cols < terminal_cols) ? game_cols : terminal_cols;
+	int max_rows = (game_rows > 0 && game_rows < terminal_rows) ? game_rows : terminal_rows;
+	
+	if (x < 0 || x >= max_cols || y < 0 || y >= max_rows)
 		return -1;
 
 	unsigned int fc = (fcolor == PKT_COLOR_DEFAULT) ? (unsigned int)user_default_fcolor : (unsigned int)fcolor;
 	unsigned int bc = (bcolor == PKT_COLOR_DEFAULT) ? (unsigned int)user_default_bcolor : (unsigned int)bcolor;
 
-	__pkt_terminal_write_cell(x, y, fc, bc, attr, c);
+	__pkt_terminal_write_cell(x, y, fc, bc, attr, 0, c);
 	return 0;
 }
 
 int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcolor, unsigned int attr, const char *str)
 {
-	if (y < 0 || y >= terminal_rows)
+	int max_cols = (game_cols > 0 && game_cols < terminal_cols) ? game_cols : terminal_cols;
+	int max_rows = (game_rows > 0 && game_rows < terminal_rows) ? game_rows : terminal_rows;
+
+	if (y < 0 || y >= max_rows)
 		return -1;
 
 	unsigned int fc = (fcolor == PKT_COLOR_DEFAULT) ? (unsigned int)user_default_fcolor : (unsigned int)fcolor;
@@ -230,7 +252,7 @@ int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcol
 	int current_x = x;
 
 	while (str[i] != '\0') {
-		if (current_x < 0 || current_x >= terminal_cols)
+		if (current_x < 0 || current_x >= max_cols)
 			break;
 
 		uint32_t packed_ch = 0;
@@ -240,10 +262,10 @@ int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcol
 		mbtowc(&wc, &str[i], bytes);
 		int width = wcwidth(wc);
 
-		__pkt_terminal_write_cell(current_x, y, fc, bc, attr, packed_ch);
+		__pkt_terminal_write_cell(current_x, y, fc, bc, attr, 0, packed_ch);
 		// last half of fullwidth character. set 1 in ch as a mark so thay terminal_update() knows 
-		if (width == 2 && current_x + 1 < terminal_cols) {
-			__pkt_terminal_write_cell(current_x + 1, y, fc, bc, attr, 1);
+		if (width == 2 && current_x + 1 < max_cols) {
+			__pkt_terminal_write_cell(current_x + 1, y, fc, bc, attr, 0, 1);
 		}
 
 		current_x += width;
@@ -267,7 +289,7 @@ int __pkt_terminal_check_resize(int *out_cols, int *out_rows)
 
 			__pkt_terminal_init_buffers();
 
-			fputs("\x1b[2J", stdout); // Clear screen
+			fputs("\x1b[0m\x1b[2J", stdout); // reset color and attr, then clear screen
 			fflush(stdout);
 
 			*out_cols = terminal_cols;
@@ -387,9 +409,13 @@ static void __pkt_terminal_stop_altbuff(void)
 }
 
 // Set font and background color. bcolor is fcolor + 10 in ANSI escape sequence.
-static void __pkt_terminal_set_color(enum pkt_color fcolor, enum pkt_color bcolor)  
+// If fcolor or bcolor is -2, reset fcolor and bcolor to terminal original.
+static void __pkt_terminal_set_color(int fcolor, int bcolor)  
 {
-	printf("\x1b[38;5;%d;48;5;%dm", (uint8_t)fcolor, (uint8_t)bcolor); 
+	if (fcolor == -2 || bcolor == -2) 
+		fputs("\x1b[39;49m", stdout);
+	else
+		printf("\x1b[38;5;%d;48;5;%dm", (uint8_t)fcolor, (uint8_t)bcolor); 
 }
 
 static void __pkt_terminal_set_attr(unsigned int attr)
@@ -451,6 +477,9 @@ static void __pkt_terminal_load_config(struct pkt_config *c)
 		user_default_bcolor = PKT_COLOR_BLACK;
 	else
 		user_default_bcolor = c->default_bcolor;
+
+	game_cols = c->game_cols;
+	game_rows = c->game_rows;
 }
 
 // Just flag if window resized by OS
@@ -460,10 +489,13 @@ static void __pkt_terminal_flag_sigwinch(int sig)
 	pending_resize_event = 1;
 }
 
-static void __pkt_terminal_write_cell(int x, int y, unsigned int fcolor, unsigned int bcolor, unsigned int attr, uint32_t ch)
+static void __pkt_terminal_write_cell(int x, int y, unsigned int fcolor, unsigned int bcolor, 
+		unsigned int attr, unsigned int flags, uint32_t ch)
 {
-	back_buffer[y * terminal_cols + x].ch = ch;
-	back_buffer[y * terminal_cols + x].fcolor = (uint8_t)fcolor;
-	back_buffer[y * terminal_cols + x].bcolor = (uint8_t)bcolor;
-	back_buffer[y * terminal_cols + x].attr = (uint8_t)attr;
+	struct pkt_cell *bb = &back_buffer[y * terminal_cols + x];	
+	bb->ch = ch;
+	bb->fcolor = (uint8_t)fcolor;
+	bb->bcolor = (uint8_t)bcolor;
+	bb->attr = (uint8_t)attr;
+	bb->flags = (uint8_t)flags;
 }
