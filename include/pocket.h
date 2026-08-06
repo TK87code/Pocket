@@ -118,13 +118,12 @@ struct pkt_event {
 
 enum pkt_keycode { 
 	PKT_KEY_ENTER = 10,
-	PKT_KEK_ESCAPE = 27,
+	PKT_KEY_ESCAPE = 27,
 	PKT_KEY_SPACE = 32,
 	PKT_KEY_UP = 1000, // Avoiding confliction with ASCII
 	PKT_KEY_DOWN,
 	PKT_KEY_RIGHT,
 	PKT_KEY_LEFT,
-	PKT_KEY_ESCAPE
 };
 
 /**
@@ -392,4 +391,4 @@ int __pkt_log_out(enum pkt_log_level level, const char *fmt, ...);
 
 #endif //#ifdef PKT_DEBUG
 
-#endif //#ifndeg POCKET_H
+#endif //#ifndef POCKET_H
