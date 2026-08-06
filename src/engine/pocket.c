@@ -49,12 +49,17 @@ int pkt_init(struct pkt_config* config)
 int pkt_ignite(void)
 {
 	useconds_t target_usec = 1000000 / target_fps; // 1 sec = 1,000,000 micro sec
-	struct timespec s_time, e_time;
-	useconds_t elapsed_usec = 0;
+	struct timespec prev_time, curr_time, work_end_time;
+
+	(void)clock_gettime(CLOCK_MONOTONIC, &prev_time);
 
 	while(is_running) {
-		float dt = elapsed_usec / 1000000.0f;
-		(void)clock_gettime(CLOCK_MONOTONIC, &s_time);
+		(void)clock_gettime(CLOCK_MONOTONIC, &curr_time);
+		useconds_t total_elapsed_usec = (curr_time.tv_sec - prev_time.tv_sec) * 1000000
+				+ (curr_time.tv_nsec - prev_time.tv_nsec) / 1000;
+		float dt = total_elapsed_usec / 1000000.0f;	
+
+		prev_time = curr_time;
 
 		int k = __pkt_terminal_read_input();
 		if (k != -1) {
@@ -80,12 +85,12 @@ int pkt_ignite(void)
 		__pkt_terminal_update();
 		__pkt_memory_reset(&frame_arena);
 
-		(void)clock_gettime(CLOCK_MONOTONIC, &e_time);
-		elapsed_usec = (e_time.tv_sec - s_time.tv_sec) * 1000000 // sec to microsec
-			+ (e_time.tv_nsec - s_time.tv_nsec) / 1000; // nanosec to microsec
+		(void)clock_gettime(CLOCK_MONOTONIC, &work_end_time);
+		useconds_t work_usec = (work_end_time.tv_sec - curr_time.tv_sec) * 1000000 // sec to microsec
+			+ (work_end_time.tv_nsec - curr_time.tv_nsec) / 1000; // nanosec to microsec
 
-		if (target_usec > elapsed_usec)
-			(void)usleep(target_usec - elapsed_usec);
+		if (target_usec > work_usec)
+			(void)usleep(target_usec - work_usec);
 	}
 
 	return 0;
