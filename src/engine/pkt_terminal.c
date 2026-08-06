@@ -442,12 +442,12 @@ static int __pkt_terminal_init_buffers(void)
 
 static void __pkt_terminal_load_config(struct pkt_config *c)
 {
-	if (c->default_fcolor < 30 || c->default_fcolor > 37)
+	if (c->default_fcolor < 0 || c->default_fcolor > 255)
 		user_default_fcolor = PKT_COLOR_WHITE;
 	else
 		user_default_fcolor = c->default_fcolor;
 
-	if (c->default_bcolor < 30 || c->default_bcolor > 37)
+	if (c->default_bcolor < 0 || c->default_bcolor > 255)
 		user_default_bcolor = PKT_COLOR_BLACK;
 	else
 		user_default_bcolor = c->default_bcolor;
