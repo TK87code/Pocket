@@ -67,6 +67,7 @@ int main(void) {
 	pkt_swap_scene(0);
 
 	// Start the game loop!
+	PKT_LOG(PKT_LOG_INFO, "Engine successfully run!"); 	
 	pkt_ignite();
 
 	// Restore terminal attributes

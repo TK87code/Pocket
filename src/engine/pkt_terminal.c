@@ -310,7 +310,6 @@ int __pkt_terminal_check_quit(void)
 {
 	if (pending_quit_event) {
 		pending_quit_event = 0;
-		__pkt_terminal_restore();
 		return 1;
 	}
 
@@ -333,7 +332,7 @@ int __pkt_terminal_get_termsize(int *out_cols, int *out_rows)
  */
 static int __pkt_terminal_setup_sig(void)
 {
-	struct sigaction sa;
+	struct sigaction sa = {0};
 	sa.sa_handler = __pkt_terminal_flag_sigwinch;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART;
@@ -535,6 +534,7 @@ static void __pkt_terminal_flag_sigwinch(int sig)
 static void __pkt_terminal_flag_quit(int sig)
 {
 	(void)sig;
+	PKT_LOG(PKT_LOG_INFO, "Force Quit signal detected"); 	
 	pending_quit_event = 1;	
 }
 
