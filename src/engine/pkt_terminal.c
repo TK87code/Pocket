@@ -34,7 +34,7 @@ static void __pkt_terminal_start_altbuff(void);
 static void __pkt_terminal_stop_altbuff(void);
 static void __pkt_terminal_load_config(struct pkt_config *config);
 static void __pkt_terminal_flag_sigwinch(int sig);
-static void __pkt_terminal_flag_sigint(int sig);
+static void __pkt_terminal_flag_quit(int sig);
 static int __pkt_terminal_set_termsize(int *out_cols, int *out_rows);
 static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char);
 static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size);
@@ -106,8 +106,15 @@ int __pkt_terminal_restore(void)
 
 	tcsetattr(STDIN_FILENO, TCSANOW, &original_term); // Restore original attribute 
 
-	free(front_buffer);
-	free(back_buffer);
+	if (front_buffer) {
+		free(front_buffer);
+		front_buffer = NULL;
+	}
+
+	if (back_buffer) {
+		free(back_buffer);
+		back_buffer = NULL;
+	}
 
 	return 0;
 }
@@ -326,23 +333,22 @@ int __pkt_terminal_get_termsize(int *out_cols, int *out_rows)
  */
 static int __pkt_terminal_setup_sig(void)
 {
-	struct sigaction sw;
-	sw.sa_handler = __pkt_terminal_flag_sigwinch;
-	sigemptyset(&sw.sa_mask);
-	sw.sa_flags = SA_RESTART;
+	struct sigaction sa;
+	sa.sa_handler = __pkt_terminal_flag_sigwinch;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
 
-	if (sigaction(SIGWINCH, &sw, NULL) < 0) {
+	if (sigaction(SIGWINCH, &sa, NULL) < 0) 
 		return -1;
-	}
 
-	struct sigaction si;
-	si.sa_handler = __pkt_terminal_flag_sigint;
-	sigemptyset(&si.sa_mask);
-	si.sa_flags = SA_RESTART;
+	sa.sa_handler = __pkt_terminal_flag_quit;
 
-	if (sigaction(SIGINT, &si, NULL) < 0) {
+	if (sigaction(SIGINT, &sa, NULL) < 0) 
 		return -2;
-	}
+	if(sigaction(SIGQUIT, &sa, NULL) < 0)
+		return -3;
+	if(sigaction(SIGTERM, &sa, NULL) < 0)
+		return -4;
 
 	return 0;
 }
@@ -526,7 +532,7 @@ static void __pkt_terminal_flag_sigwinch(int sig)
 	pending_resize_event = 1;
 }
 
-static void __pkt_terminal_flag_sigint(int sig)
+static void __pkt_terminal_flag_quit(int sig)
 {
 	(void)sig;
 	pending_quit_event = 1;	
