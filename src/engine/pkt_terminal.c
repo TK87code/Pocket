@@ -81,7 +81,10 @@ int __pkt_terminal_init(struct pkt_config *config)
 	new_term.c_cc[VTIME] = 0;  
 	tcsetattr(STDIN_FILENO, TCSANOW, &new_term); 
 	
-	__pkt_terminal_setup_sig();
+	int err = 0;
+	if (__pkt_terminal_setup_sig() < 0)
+		PKT_LOG(PKT_LOG_ERROR, "Failed to setup Signal handler code: %d", err);
+	
 	__pkt_terminal_start_altbuff();
 	__pkt_terminal_hidecurs();
 	fflush(stdout);
@@ -337,20 +340,21 @@ static int __pkt_terminal_setup_sig(void)
 	sa.sa_handler = __pkt_terminal_flag_sigwinch;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART;
-
+	
+	int rval = 0;
 	if (sigaction(SIGWINCH, &sa, NULL) < 0) 
-		return -1;
+		rval = -1;
 
 	sa.sa_handler = __pkt_terminal_flag_quit;
 
 	if (sigaction(SIGINT, &sa, NULL) < 0) 
-		return -2;
+		rval = -2;
 	if(sigaction(SIGQUIT, &sa, NULL) < 0)
-		return -3;
+		rval = -3;
 	if(sigaction(SIGTERM, &sa, NULL) < 0)
-		return -4;
+		rval = -4;
 
-	return 0;
+	return rval;
 }
 
 static int __pkt_terminal_set_termsize(int *out_cols, int *out_rows) 
