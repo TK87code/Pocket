@@ -22,6 +22,7 @@ struct pkt_cell { // 8 bytes
 	uint8_t flags;
 };
 
+static int __pkt_terminal_setup_sig(void);
 static void __pkt_terminal_hidecurs(void);
 static void __pkt_terminal_showcurs(void);
 static void __pkt_terminal_mvcurs(int x, int y);
@@ -33,6 +34,7 @@ static void __pkt_terminal_start_altbuff(void);
 static void __pkt_terminal_stop_altbuff(void);
 static void __pkt_terminal_load_config(struct pkt_config *config);
 static void __pkt_terminal_flag_sigwinch(int sig);
+static void __pkt_terminal_flag_sigint(int sig);
 static int __pkt_terminal_set_termsize(int *out_cols, int *out_rows);
 static int __pkt_terminal_pack_utf8(const char *str, uint32_t *out_char);
 static int __pkt_terminal_unpack_utf8(char *buf, uint32_t ch, size_t buf_size);
@@ -45,6 +47,7 @@ static struct pkt_cell *front_buffer;
 static struct pkt_cell *back_buffer;
 
 static volatile sig_atomic_t pending_resize_event = 0;
+static volatile sig_atomic_t pending_quit_event = 0;
 
 // Global variables to store game player's current terminal sizes
 static int terminal_rows = 0;
@@ -78,12 +81,7 @@ int __pkt_terminal_init(struct pkt_config *config)
 	new_term.c_cc[VTIME] = 0;  
 	tcsetattr(STDIN_FILENO, TCSANOW, &new_term); 
 	
-	struct sigaction sa;
-	sa.sa_handler = __pkt_terminal_flag_sigwinch;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	sigaction(SIGWINCH, &sa, NULL);
-
+	__pkt_terminal_setup_sig();
 	__pkt_terminal_start_altbuff();
 	__pkt_terminal_hidecurs();
 	fflush(stdout);
@@ -301,12 +299,51 @@ int __pkt_terminal_check_resize(int *out_cols, int *out_rows)
 	return 0;
 }
 
+int __pkt_terminal_check_quit(void)
+{
+	if (pending_quit_event) {
+		pending_quit_event = 0;
+		__pkt_terminal_restore();
+		return 1;
+	}
+
+	return 0;
+}
+
 int __pkt_terminal_get_termsize(int *out_cols, int *out_rows)
 {
 	if (out_cols)
 		*out_cols = terminal_cols;
 	if (out_rows)
 		*out_rows = terminal_rows;
+	return 0;
+}
+
+/*
+ * Setup resize signal and force quit(ctrl + c) signal.
+ * Each signal handlers just flag that events occur.
+ * Main loop check if there is a pending event, then each checking function do their job.
+ */
+static int __pkt_terminal_setup_sig(void)
+{
+	struct sigaction sw;
+	sw.sa_handler = __pkt_terminal_flag_sigwinch;
+	sigemptyset(&sw.sa_mask);
+	sw.sa_flags = SA_RESTART;
+
+	if (sigaction(SIGWINCH, &sw, NULL) < 0) {
+		return -1;
+	}
+
+	struct sigaction si;
+	si.sa_handler = __pkt_terminal_flag_sigint;
+	sigemptyset(&si.sa_mask);
+	si.sa_flags = SA_RESTART;
+
+	if (sigaction(SIGINT, &si, NULL) < 0) {
+		return -2;
+	}
+
 	return 0;
 }
 
@@ -487,6 +524,12 @@ static void __pkt_terminal_flag_sigwinch(int sig)
 {
 	(void)sig;
 	pending_resize_event = 1;
+}
+
+static void __pkt_terminal_flag_sigint(int sig)
+{
+	(void)sig;
+	pending_quit_event = 1;	
 }
 
 static void __pkt_terminal_write_cell(int x, int y, unsigned int fcolor, unsigned int bcolor, 

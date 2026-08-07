@@ -61,6 +61,9 @@ int pkt_ignite(void)
 
 		prev_time = curr_time;
 
+		if (__pkt_terminal_check_quit())
+			break;
+
 		int k = __pkt_terminal_read_input();
 		if (k != -1) {
 			struct pkt_event e;

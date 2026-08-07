@@ -20,5 +20,7 @@ int __pkt_terminal_puts(int x, int y, enum pkt_color fcolor, enum pkt_color bcol
 int __pkt_terminal_check_resize(int *out_cols, int *out_rows);
 int __pkt_terminal_get_termsize(int *out_cols, int *out_rows);
 
+int __pkt_terminal_check_quit(void);
+
 #endif
 
