@@ -309,6 +309,7 @@ int __pkt_terminal_check_resize(int *out_cols, int *out_rows)
 int __pkt_terminal_check_quit(void)
 {
 	if (pending_quit_event) {
+		PKT_LOG(PKT_LOG_INFO, "Force Quit signal detected"); 	
 		pending_quit_event = 0;
 		return 1;
 	}
@@ -534,7 +535,6 @@ static void __pkt_terminal_flag_sigwinch(int sig)
 static void __pkt_terminal_flag_quit(int sig)
 {
 	(void)sig;
-	PKT_LOG(PKT_LOG_INFO, "Force Quit signal detected"); 	
 	pending_quit_event = 1;	
 }
 
